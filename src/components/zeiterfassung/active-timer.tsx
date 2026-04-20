@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Square } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -21,47 +21,48 @@ function formatElapsed(ms: number): string {
 
 export function ActiveTimer({ entry, project }: ActiveTimerProps) {
   const [elapsed, setElapsed] = useState('00:00:00');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isStopped, setIsStopped] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
+    if (isStopped) return;
     const startTime = new Date(entry.start_time).getTime();
     const update = () => setElapsed(formatElapsed(Date.now() - startTime));
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [entry.start_time]);
+  }, [entry.start_time, isStopped]);
 
   const handleStop = async () => {
-    setIsLoading(true);
+    // Optimistic: hide timer immediately
+    setIsStopped(true);
     setError(null);
 
-    try {
-      const endTime = new Date();
-      const startTime = new Date(entry.start_time);
-      const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
+    const endTime = new Date();
+    const startTime = new Date(entry.start_time);
+    const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
 
-      const { error: updateError } = await supabase
-        .from('time_entries')
-        .update({
-          end_time: endTime.toISOString(),
-          duration_minutes: durationMinutes,
-        })
-        .eq('id', entry.id);
+    const { error: updateError } = await supabase
+      .from('time_entries')
+      .update({
+        end_time: endTime.toISOString(),
+        duration_minutes: durationMinutes,
+      })
+      .eq('id', entry.id);
 
-      if (updateError) {
-        setError('Fehler beim Stoppen: ' + updateError.message);
-        setIsLoading(false);
-      } else {
-        router.refresh();
-      }
-    } catch (err) {
-      setError('Unerwarteter Fehler: ' + (err instanceof Error ? err.message : String(err)));
-      setIsLoading(false);
+    if (updateError) {
+      // Revert optimistic update
+      setIsStopped(false);
+      setError('Fehler: ' + updateError.message);
+      return;
     }
+
+    router.refresh();
   };
+
+  if (isStopped) return null;
 
   return (
     <div className="bg-green-50 border border-green-200 rounded-xl p-4 shadow-sm">
@@ -88,11 +89,10 @@ export function ActiveTimer({ entry, project }: ActiveTimerProps) {
         </div>
         <button
           onClick={handleStop}
-          disabled={isLoading}
-          className="flex items-center gap-2 px-5 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-2 px-5 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
         >
           <Square className="h-4 w-4" />
-          {isLoading ? 'Stoppe...' : 'Stoppen'}
+          Stoppen
         </button>
       </div>
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}

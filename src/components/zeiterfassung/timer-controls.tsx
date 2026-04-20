@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Play } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -13,14 +13,16 @@ interface TimerControlsProps {
 }
 
 export function TimerControls({ projects, hasActiveTimer }: TimerControlsProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
+    if (isStarting) return;
+
+    setIsStarting(true);
     setError(null);
 
     try {
@@ -31,7 +33,7 @@ export function TimerControls({ projects, hasActiveTimer }: TimerControlsProps) 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setError('Nicht angemeldet');
-        setIsLoading(false);
+        setIsStarting(false);
         return;
       }
 
@@ -44,14 +46,16 @@ export function TimerControls({ projects, hasActiveTimer }: TimerControlsProps) 
       });
 
       if (insertError) {
-        setError('Fehler beim Starten: ' + insertError.message);
-      } else {
-        router.refresh();
+        setError('Fehler: ' + insertError.message);
+        setIsStarting(false);
+        return;
       }
+
+      router.refresh();
+      // Keep isStarting true briefly — router.refresh will unmount this anyway
     } catch (err) {
       setError('Unerwarteter Fehler: ' + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsLoading(false);
+      setIsStarting(false);
     }
   };
 
@@ -74,11 +78,11 @@ export function TimerControls({ projects, hasActiveTimer }: TimerControlsProps) 
         </div>
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isStarting}
           className="flex items-center justify-center gap-2 px-5 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors whitespace-nowrap"
         >
           <Play className="h-4 w-4" />
-          {isLoading ? 'Starte...' : 'Start'}
+          {isStarting ? 'Starte...' : 'Start'}
         </button>
       </div>
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}

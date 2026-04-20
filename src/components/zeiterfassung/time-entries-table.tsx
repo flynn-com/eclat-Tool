@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -102,7 +102,7 @@ export function TimeEntriesTable({ entries, profiles, projects, currentUserId, s
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const filtered = entries.filter((e) => {
     if (selectedUser && e.user_id !== selectedUser) return false;

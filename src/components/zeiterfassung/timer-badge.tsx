@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
@@ -14,39 +14,36 @@ function formatShort(ms: number): string {
 export function TimerBadge() {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState('');
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
+    let mounted = true;
+
     const check = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || !mounted) return;
 
       const { data } = await supabase
         .from('time_entries')
         .select('start_time')
         .eq('user_id', user.id)
         .is('end_time', null)
-        .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (data) {
-        setStartTime(new Date(data.start_time).getTime());
-      } else {
-        setStartTime(null);
-      }
+      if (!mounted) return;
+      setStartTime(data ? new Date(data.start_time).getTime() : null);
     };
 
     check();
-    const interval = setInterval(check, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = setInterval(check, 60000); // every 60s is enough
+    return () => { mounted = false; clearInterval(interval); };
+  }, [supabase]);
 
   useEffect(() => {
     if (startTime === null) return;
-
     const update = () => setElapsed(formatShort(Date.now() - startTime));
     update();
-    const interval = setInterval(update, 60000);
+    const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
   }, [startTime]);
 
