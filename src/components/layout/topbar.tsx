@@ -2,10 +2,10 @@
 
 import { useUser } from '@/hooks/use-user';
 import { TimerBadge } from '@/components/zeiterfassung/timer-badge';
-import { LogOut, AlertCircle } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 export function Topbar() {
-  const { profile, role, signOut, error } = useUser();
+  const { profile, role, signOut } = useUser();
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-4 md:px-6 mx-3 mt-3 neu-raised-sm">
@@ -16,12 +16,6 @@ export function Topbar() {
       </div>
       <div className="hidden md:block" />
       <div className="flex items-center gap-3">
-        {error && (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium" style={{ background: '#FEF2F2', color: '#EF4444' }}>
-            <AlertCircle className="h-3.5 w-3.5" />
-            Session-Fehler — wird neu geladen
-          </div>
-        )}
         <TimerBadge />
         {profile && (
           <>
