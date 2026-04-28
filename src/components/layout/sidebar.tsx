@@ -44,7 +44,7 @@ export function Sidebar({ role }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center justify-center mb-8 h-12 w-12">
         <Image
-          src="/éclat-studios (é)(weiß).png"
+          src="/logo-icon.png"
           alt="é"
           width={36}
           height={36}
