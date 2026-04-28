@@ -17,7 +17,9 @@ export function AppShell({ role, children }: AppShellProps) {
       <div className="md:pl-20 flex flex-col h-full">
         <Topbar />
         <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6 overflow-auto">
-          {children}
+          <div className="mx-auto" style={{ maxWidth: '1500px' }}>
+            {children}
+          </div>
         </main>
       </div>
       <MobileNav role={role} />
