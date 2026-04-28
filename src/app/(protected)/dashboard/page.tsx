@@ -18,11 +18,15 @@ export default async function DashboardPage() {
     { data: trackingData },
     { data: deductData },
     { data: activeProjects },
+    { count: meetingTasksCount },
+    { count: projectTasksCount },
   ] = await Promise.all([
     supabase.from('profiles').select('role, full_name').eq('id', user!.id).maybeSingle(),
     supabase.from('time_entries').select('duration_minutes').eq('user_id', user!.id).not('end_time', 'is', null),
     supabase.from('stunden_abrechnungen').select('stunden').eq('user_id', user!.id),
     supabase.from('projects').select('phase').eq('status', 'active'),
+    supabase.from('meeting_tasks').select('*', { count: 'exact', head: true }).eq('assignee_id', user!.id).neq('status', 'erledigt'),
+    supabase.from('project_tasks').select('*', { count: 'exact', head: true }).eq('assignee_id', user!.id).neq('status', 'erledigt'),
   ]);
 
   const isAdmin = profile?.role === 'admin';
@@ -35,6 +39,8 @@ export default async function DashboardPage() {
   for (const p of (activeProjects ?? [])) {
     phaseCounts[p.phase] = (phaseCounts[p.phase] || 0) + 1;
   }
+
+  const offeneAufgaben = (meetingTasksCount ?? 0) + (projectTasksCount ?? 0);
 
   return (
     <div>
@@ -55,9 +61,10 @@ export default async function DashboardPage() {
         />
         <OverviewCard
           title="Aufgaben"
-          value="--"
-          description="Offen"
+          value={String(offeneAufgaben)}
+          description="Offen fuer dich"
           icon={<CheckSquare className="h-5 w-5" />}
+          href="/aufgaben"
         />
         <OverviewCard
           title="Projekte"

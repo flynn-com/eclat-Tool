@@ -3,7 +3,9 @@
     "allow": [
       "Bash(git config *)",
       "Bash(export PATH=\"$PATH:/c/Program Files/nodejs\")",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }

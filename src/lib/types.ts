@@ -127,3 +127,26 @@ export interface TimeEntryWithRelations extends TimeEntry {
   profiles: Pick<Profile, 'full_name' | 'avatar_url'>;
   projects: Pick<Project, 'name' | 'color'> | null;
 }
+
+export interface Meeting {
+  id: string;
+  name: string;
+  date: string;
+  shared_notes: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingTask {
+  id: string;
+  meeting_id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  assignee_id: string | null;
+  due_date: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}

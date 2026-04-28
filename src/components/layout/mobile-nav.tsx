@@ -12,6 +12,8 @@ import {
   Users,
   Wrench,
   Settings,
+  CheckSquare,
+  MessageSquare,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -22,6 +24,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Users,
   Wrench,
   Settings,
+  CheckSquare,
+  MessageSquare,
 };
 
 interface MobileNavProps {

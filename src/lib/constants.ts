@@ -2,6 +2,8 @@ import { NavItem } from './types';
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: 'LayoutDashboard', roles: ['admin', 'employee'] },
+  { label: 'Aufgaben', href: '/aufgaben', icon: 'CheckSquare', roles: ['admin', 'employee'] },
+  { label: 'Meetings', href: '/meetings', icon: 'MessageSquare', roles: ['admin', 'employee'] },
   { label: 'Zeiterfassung', href: '/zeiterfassung', icon: 'Clock', roles: ['admin', 'employee'] },
   { label: 'Finanzen', href: '/finanzen', icon: 'Calculator', roles: ['admin'] },
   { label: 'Projekte', href: '/projekte', icon: 'FolderKanban', roles: ['admin', 'employee'] },
