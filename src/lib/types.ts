@@ -150,3 +150,14 @@ export interface MeetingTask {
   created_at: string;
   updated_at: string;
 }
+
+export interface MeetingAgendaItem {
+  id: string;
+  meeting_id: string;
+  title: string;
+  is_checked: boolean;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}

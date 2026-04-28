@@ -106,3 +106,37 @@ export async function deleteMeetingTask(taskId: string, meetingId?: string) {
   revalidate(meetingId);
   return { error: null };
 }
+
+// ========== Meeting Agenda ==========
+
+export async function addAgendaItem(meetingId: string, title: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Nicht angemeldet' };
+
+  const { error } = await supabase.from('meeting_agenda').insert({
+    meeting_id: meetingId,
+    title,
+    created_by: user.id,
+  });
+
+  if (error) return { error: error.message };
+  revalidate(meetingId);
+  return { error: null };
+}
+
+export async function toggleAgendaItem(itemId: string, isChecked: boolean, meetingId?: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('meeting_agenda').update({ is_checked: isChecked }).eq('id', itemId);
+  if (error) return { error: error.message };
+  revalidate(meetingId);
+  return { error: null };
+}
+
+export async function deleteAgendaItem(itemId: string, meetingId?: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('meeting_agenda').delete().eq('id', itemId);
+  if (error) return { error: error.message };
+  revalidate(meetingId);
+  return { error: null };
+}
