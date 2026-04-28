@@ -73,34 +73,19 @@ export function StundenkontenManager({ konten }: Props) {
   };
 
   const handleAdd = async (userId: string) => {
-    console.log('[handleAdd] Klick erhalten fuer user:', userId, 'stunden:', addStunden);
     setError(null);
     const stunden = parseFloat(addStunden.replace(',', '.'));
     if (isNaN(stunden) || stunden <= 0) {
-      setError('Bitte eine gueltige Stundenzahl eingeben (aktuell: "' + addStunden + '")');
-      console.error('[handleAdd] Invalid stunden:', addStunden);
+      setError('Bitte eine gueltige Stundenzahl eingeben.');
       return;
     }
 
     setIsSaving(true);
-    console.log('[handleAdd] Starte Insert...');
-
-    // Hard timeout: nach 10s aufgeben falls Supabase haengt
-    let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
-      console.error('[handleAdd] TIMEOUT nach 10s — Supabase antwortet nicht');
-      setError('Timeout: Supabase antwortet nicht nach 10 Sekunden. Bitte ausloggen und neu einloggen.');
-      setIsSaving(false);
-    }, 10000);
-
-    const cancelTimeout = () => { if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; } };
 
     try {
-      console.log('[handleAdd] Checke Auth...');
       const authResult = await supabase.auth.getUser();
-      console.log('[handleAdd] Auth ok, user:', authResult.data.user?.email);
       if (authResult.error || !authResult.data.user) {
-        cancelTimeout();
-        setError('Nicht angemeldet — bitte neu einloggen. ' + (authResult.error?.message ?? ''));
+        setError('Nicht angemeldet — bitte neu einloggen.');
         setIsSaving(false);
         return;
       }
@@ -110,7 +95,6 @@ export function StundenkontenManager({ konten }: Props) {
         const datum = addDatum || new Date().toISOString().split('T')[0];
         const startTime = new Date(`${datum}T09:00:00`).toISOString();
         const endTime = new Date(`${datum}T09:00:00`).toISOString();
-        console.log('[handleAdd] Sende Insert an Supabase...');
         const result = await supabase.from('time_entries').insert({
           user_id: userId,
           start_time: startTime,
@@ -119,40 +103,24 @@ export function StundenkontenManager({ konten }: Props) {
           description: addBeschreibung || 'Manuell vom Admin hinzugefuegt',
           is_manual: true,
         }).select();
-        console.log('[handleAdd] Insert response erhalten. Data:', result.data, 'Error:', result.error);
-        cancelTimeout();
         if (result.error) {
-          setError('DB-Fehler: ' + result.error.message + (result.error.code ? ' (' + result.error.code + ')' : '') + (result.error.hint ? ' Hint: ' + result.error.hint : ''));
-          setIsSaving(false);
-          return;
-        }
-        if (!result.data || result.data.length === 0) {
-          setError('Eintrag wurde nicht gespeichert (RLS-Policy verhindert Insert).');
+          setError('Fehler: ' + result.error.message);
           setIsSaving(false);
           return;
         }
       } else {
-        console.log('[handleAdd] Sende Abrechnung an Supabase...');
         const result = await supabase.from('stunden_abrechnungen').insert({
           user_id: userId,
           stunden,
           beschreibung: addBeschreibung || 'Manuelle Abrechnung vom Admin',
         }).select();
-        console.log('[handleAdd] Abrechnung response erhalten. Data:', result.data, 'Error:', result.error);
-        cancelTimeout();
         if (result.error) {
-          setError('DB-Fehler: ' + result.error.message + (result.error.code ? ' (' + result.error.code + ')' : '') + (result.error.hint ? ' Hint: ' + result.error.hint : ''));
-          setIsSaving(false);
-          return;
-        }
-        if (!result.data || result.data.length === 0) {
-          setError('Eintrag wurde nicht gespeichert (RLS-Policy verhindert Insert).');
+          setError('Fehler: ' + result.error.message);
           setIsSaving(false);
           return;
         }
       }
 
-      console.log('[handleAdd] Insert erfolgreich!');
       setAddForUser(null);
       setAddStunden('');
       setAddBeschreibung('');
@@ -160,8 +128,6 @@ export function StundenkontenManager({ konten }: Props) {
       setIsSaving(false);
       router.refresh();
     } catch (err) {
-      cancelTimeout();
-      console.error('[handleAdd] Exception:', err);
       setError('Unerwarteter Fehler: ' + (err instanceof Error ? err.message : String(err)));
       setIsSaving(false);
     }
