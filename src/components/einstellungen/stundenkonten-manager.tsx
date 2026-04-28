@@ -73,14 +73,17 @@ export function StundenkontenManager({ konten }: Props) {
   };
 
   const handleAdd = async (userId: string) => {
+    console.log('[handleAdd] Klick erhalten fuer user:', userId, 'stunden:', addStunden);
     setError(null);
     const stunden = parseFloat(addStunden.replace(',', '.'));
     if (isNaN(stunden) || stunden <= 0) {
-      setError('Bitte eine gueltige Stundenzahl eingeben');
+      setError('Bitte eine gueltige Stundenzahl eingeben (aktuell: "' + addStunden + '")');
+      console.error('[handleAdd] Invalid stunden:', addStunden);
       return;
     }
 
     setIsSaving(true);
+    console.log('[handleAdd] Starte Insert...');
 
     try {
       // Check user is authenticated
@@ -132,6 +135,7 @@ export function StundenkontenManager({ konten }: Props) {
         }
       }
 
+      console.log('[handleAdd] Insert erfolgreich!');
       setAddForUser(null);
       setAddStunden('');
       setAddBeschreibung('');
@@ -139,6 +143,7 @@ export function StundenkontenManager({ konten }: Props) {
       setIsSaving(false);
       router.refresh();
     } catch (err) {
+      console.error('[handleAdd] Exception:', err);
       setError('Unerwarteter Fehler: ' + (err instanceof Error ? err.message : String(err)));
       setIsSaving(false);
     }
