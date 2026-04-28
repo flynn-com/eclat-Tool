@@ -7,7 +7,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes
-  if (pathname === '/login' || pathname.startsWith('/auth/')) {
+  if (pathname === '/login' || pathname === '/diagnose' || pathname.startsWith('/auth/')) {
     if (user) {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
