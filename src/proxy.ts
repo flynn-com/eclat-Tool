@@ -5,12 +5,23 @@ export async function proxy(request: NextRequest) {
   const { user, supabaseResponse } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
-  // Allow public routes
-  if (pathname === '/login' || pathname === '/diagnose' || pathname.startsWith('/auth/') || pathname.startsWith('/api/')) {
+  // Public routes — always pass through (with updated session cookies)
+  if (
+    pathname === '/login' ||
+    pathname === '/diagnose' ||
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/api/')
+  ) {
+    // Redirect logged-in users away from login page
     if (user && pathname === '/login') {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
+      // Copy session cookies into the redirect response
+      const redirect = NextResponse.redirect(url);
+      supabaseResponse.cookies.getAll().forEach((cookie) => {
+        redirect.cookies.set(cookie.name, cookie.value);
+      });
+      return redirect;
     }
     return supabaseResponse;
   }
@@ -19,9 +30,15 @@ export async function proxy(request: NextRequest) {
   if (!user) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    return NextResponse.redirect(url);
+    const redirect = NextResponse.redirect(url);
+    // Copy any cookie changes (e.g. expired cookie cleanup) into the redirect
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirect.cookies.set(cookie.name, cookie.value);
+    });
+    return redirect;
   }
 
+  // Authenticated — return the response with refreshed session cookies
   return supabaseResponse;
 }
 

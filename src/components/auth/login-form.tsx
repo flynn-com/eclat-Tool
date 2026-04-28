@@ -2,14 +2,12 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
   const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -17,10 +15,7 @@ export function LoginForm() {
     setIsLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError('E-Mail oder Passwort ist falsch.');
@@ -28,8 +23,9 @@ export function LoginForm() {
       return;
     }
 
-    router.push('/dashboard');
-    router.refresh();
+    // Hard navigation so the browser picks up the new session cookies
+    // before the next page renders server-side.
+    window.location.href = '/dashboard';
   };
 
   return (
@@ -62,9 +58,7 @@ export function LoginForm() {
           placeholder="••••••••"
         />
       </div>
-      {error && (
-        <p className="text-sm text-red-500">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-500">{error}</p>}
       <button
         type="submit"
         disabled={isLoading}
