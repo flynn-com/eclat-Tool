@@ -85,23 +85,22 @@ export function StundenkontenManager({ konten }: Props) {
     setIsSaving(true);
     console.log('[handleAdd] Starte Insert...');
 
-    // Timeout-Wrapper: bricht nach 10 Sekunden ab
-    const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =>
-      Promise.race([
-        p,
-        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout: ${label} nach ${ms}ms`)), ms)),
-      ]);
+    // Hard timeout: nach 10s aufgeben falls Supabase haengt
+    let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      console.error('[handleAdd] TIMEOUT nach 10s — Supabase antwortet nicht');
+      setError('Timeout: Supabase antwortet nicht nach 10 Sekunden. Bitte ausloggen und neu einloggen.');
+      setIsSaving(false);
+    }, 10000);
+
+    const cancelTimeout = () => { if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; } };
 
     try {
       console.log('[handleAdd] Checke Auth...');
-      const { data: { user: authUser }, error: authError } = await withTimeout(
-        supabase.auth.getUser(),
-        5000,
-        'getUser'
-      );
-      console.log('[handleAdd] Auth ok, user:', authUser?.email);
-      if (authError || !authUser) {
-        setError('Nicht angemeldet — bitte neu einloggen. ' + (authError?.message ?? ''));
+      const authResult = await supabase.auth.getUser();
+      console.log('[handleAdd] Auth ok, user:', authResult.data.user?.email);
+      if (authResult.error || !authResult.data.user) {
+        cancelTimeout();
+        setError('Nicht angemeldet — bitte neu einloggen. ' + (authResult.error?.message ?? ''));
         setIsSaving(false);
         return;
       }
@@ -112,48 +111,42 @@ export function StundenkontenManager({ konten }: Props) {
         const startTime = new Date(`${datum}T09:00:00`).toISOString();
         const endTime = new Date(`${datum}T09:00:00`).toISOString();
         console.log('[handleAdd] Sende Insert an Supabase...');
-        const { error: insertError, data } = await withTimeout(
-          supabase.from('time_entries').insert({
-            user_id: userId,
-            start_time: startTime,
-            end_time: endTime,
-            duration_minutes: minuten,
-            description: addBeschreibung || 'Manuell vom Admin hinzugefuegt',
-            is_manual: true,
-          }).select(),
-          10000,
-          'time_entries insert'
-        );
-        console.log('[handleAdd] Insert response erhalten. Data:', data, 'Error:', insertError);
-        if (insertError) {
-          setError('DB-Fehler: ' + insertError.message + (insertError.code ? ' (' + insertError.code + ')' : '') + (insertError.hint ? ' Hint: ' + insertError.hint : ''));
+        const result = await supabase.from('time_entries').insert({
+          user_id: userId,
+          start_time: startTime,
+          end_time: endTime,
+          duration_minutes: minuten,
+          description: addBeschreibung || 'Manuell vom Admin hinzugefuegt',
+          is_manual: true,
+        }).select();
+        console.log('[handleAdd] Insert response erhalten. Data:', result.data, 'Error:', result.error);
+        cancelTimeout();
+        if (result.error) {
+          setError('DB-Fehler: ' + result.error.message + (result.error.code ? ' (' + result.error.code + ')' : '') + (result.error.hint ? ' Hint: ' + result.error.hint : ''));
           setIsSaving(false);
           return;
         }
-        if (!data || data.length === 0) {
-          setError('Eintrag wurde nicht gespeichert (RLS-Policy verhindert Insert). Pruefe dass du Admin bist und Migration 010 ausgefuehrt wurde.');
+        if (!result.data || result.data.length === 0) {
+          setError('Eintrag wurde nicht gespeichert (RLS-Policy verhindert Insert).');
           setIsSaving(false);
           return;
         }
       } else {
         console.log('[handleAdd] Sende Abrechnung an Supabase...');
-        const { error: insertError, data } = await withTimeout(
-          supabase.from('stunden_abrechnungen').insert({
-            user_id: userId,
-            stunden,
-            beschreibung: addBeschreibung || 'Manuelle Abrechnung vom Admin',
-          }).select(),
-          10000,
-          'stunden_abrechnungen insert'
-        );
-        console.log('[handleAdd] Abrechnung response erhalten. Data:', data, 'Error:', insertError);
-        if (insertError) {
-          setError('DB-Fehler: ' + insertError.message + (insertError.code ? ' (' + insertError.code + ')' : '') + (insertError.hint ? ' Hint: ' + insertError.hint : ''));
+        const result = await supabase.from('stunden_abrechnungen').insert({
+          user_id: userId,
+          stunden,
+          beschreibung: addBeschreibung || 'Manuelle Abrechnung vom Admin',
+        }).select();
+        console.log('[handleAdd] Abrechnung response erhalten. Data:', result.data, 'Error:', result.error);
+        cancelTimeout();
+        if (result.error) {
+          setError('DB-Fehler: ' + result.error.message + (result.error.code ? ' (' + result.error.code + ')' : '') + (result.error.hint ? ' Hint: ' + result.error.hint : ''));
           setIsSaving(false);
           return;
         }
-        if (!data || data.length === 0) {
-          setError('Eintrag wurde nicht gespeichert (RLS-Policy verhindert Insert). Pruefe dass du Admin bist.');
+        if (!result.data || result.data.length === 0) {
+          setError('Eintrag wurde nicht gespeichert (RLS-Policy verhindert Insert).');
           setIsSaving(false);
           return;
         }
@@ -167,6 +160,7 @@ export function StundenkontenManager({ konten }: Props) {
       setIsSaving(false);
       router.refresh();
     } catch (err) {
+      cancelTimeout();
       console.error('[handleAdd] Exception:', err);
       setError('Unerwarteter Fehler: ' + (err instanceof Error ? err.message : String(err)));
       setIsSaving(false);
