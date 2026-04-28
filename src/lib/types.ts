@@ -40,6 +40,7 @@ export interface Project {
   phase: ProjectPhase;
   progress: number;
   briefing_description: string | null;
+  kunde_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -146,6 +147,28 @@ export interface MeetingTask {
   status: TaskStatus;
   assignee_id: string | null;
   due_date: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type KundeStatus = 'aktiv' | 'inaktiv' | 'lead';
+
+export interface Kunde {
+  id: string;
+  firma: string;
+  ansprechpartner: string | null;
+  email: string | null;
+  telefon: string | null;
+  webseite: string | null;
+  strasse: string | null;
+  plz: string | null;
+  stadt: string | null;
+  land: string | null;
+  ust_id: string | null;
+  branche: string | null;
+  notizen: string | null;
+  status: KundeStatus;
   created_by: string | null;
   created_at: string;
   updated_at: string;

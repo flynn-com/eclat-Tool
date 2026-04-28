@@ -1,13 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { createProject } from '@/app/(protected)/projekte/actions';
 import { useRouter } from 'next/navigation';
 import { CAMPAIGN_TYPE_LABELS } from '@/lib/constants';
+import { Kunde } from '@/lib/types';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
 
-export function CreateProjectForm() {
+interface CreateProjectFormProps {
+  kunden?: Pick<Kunde, 'id' | 'firma'>[];
+}
+
+export function CreateProjectForm({ kunden = [] }: CreateProjectFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
@@ -39,8 +45,14 @@ export function CreateProjectForm() {
           <input name="name" type="text" required placeholder="z.B. Kampagne Sommer 2026" className="neu-input w-full text-sm" />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Kunde</label>
-          <input name="client_name" type="text" placeholder="Kundenname" className="neu-input w-full text-sm" />
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium" style={{ color: 'var(--neu-text-secondary)' }}>Kunde</label>
+            <Link href="/vertrieb/kunden/neu" className="text-xs hover:underline" style={{ color: 'var(--neu-accent)' }}>+ Neuer Kunde</Link>
+          </div>
+          <select name="kunde_id" className="neu-input w-full text-sm">
+            <option value="">-- Kunde waehlen (optional) --</option>
+            {kunden.map((k) => <option key={k.id} value={k.id}>{k.firma}</option>)}
+          </select>
         </div>
       </div>
 

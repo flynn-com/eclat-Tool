@@ -11,11 +11,21 @@ export async function createProject(formData: FormData) {
   const name = formData.get('name') as string;
   if (!name?.trim()) throw new Error('Projektname ist erforderlich');
 
+  const kundeId = (formData.get('kunde_id') as string) || null;
+
+  // Falls Kunde gewaehlt, Firmenname als client_name uebernehmen
+  let clientName = (formData.get('client_name') as string) || null;
+  if (kundeId) {
+    const { data: kunde } = await supabase.from('kunden').select('firma').eq('id', kundeId).maybeSingle();
+    if (kunde) clientName = kunde.firma;
+  }
+
   const { error } = await supabase.from('projects').insert({
     name: name.trim(),
     description: (formData.get('description') as string) || null,
     color: (formData.get('color') as string) || '#3B82F6',
-    client_name: (formData.get('client_name') as string) || null,
+    client_name: clientName,
+    kunde_id: kundeId,
     campaign_type: (formData.get('campaign_type') as string) || null,
     budget: formData.get('budget') ? parseFloat(formData.get('budget') as string) : null,
     deadline: (formData.get('deadline') as string) || null,
