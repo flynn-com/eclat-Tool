@@ -25,10 +25,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de" className={`${nunitoSans.variable} ${inter.variable} h-full`}>
-      <head>
-        <link rel="preconnect" href="https://fuxtmqammimjsjxmrtqu.supabase.co" />
-        <link rel="dns-prefetch" href="https://fuxtmqammimjsjxmrtqu.supabase.co" />
-      </head>
       <body className="h-full antialiased" style={{ fontFamily: 'var(--font-body), sans-serif' }}>
         {children}
       </body>
