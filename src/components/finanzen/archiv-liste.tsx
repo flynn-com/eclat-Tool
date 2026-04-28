@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Download } from 'lucide-react';
-import { generateGewinnverteilungPdf } from '@/lib/pdf-gewinnverteilung';
 
 interface Position {
   name: string;
@@ -48,7 +47,8 @@ function formatDatum(dateStr: string): string {
 export function ArchivListe({ verteilungen }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const downloadPdf = (v: Verteilung) => {
+  const downloadPdf = async (v: Verteilung) => {
+    const { generateGewinnverteilungPdf } = await import('@/lib/pdf-gewinnverteilung');
     const datum = new Date(v.created_at).toLocaleDateString('de-DE');
     const doc = generateGewinnverteilungPdf({
       gesamtgewinn: v.gesamtgewinn,

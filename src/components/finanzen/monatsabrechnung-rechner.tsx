@@ -5,7 +5,6 @@ import { Calculator, Check, Download, Plus, Trash2, RotateCcw } from 'lucide-rea
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
-import { generateMonatsabrechnungPdf } from '@/lib/pdf-monatsabrechnung';
 import type { MonatsabrechnungSettings, Staffel } from '@/lib/settings';
 
 export interface PersonDaten {
@@ -315,6 +314,8 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
 
   const downloadPdf = async () => {
     if (!ergebnis) return;
+    // Lazy load PDF library only when needed (saves ~600KB on initial load)
+    const { generateMonatsabrechnungPdf } = await import('@/lib/pdf-monatsabrechnung');
     const datum = new Date().toLocaleDateString('de-DE');
     const doc = await generateMonatsabrechnungPdf({
       monat: abrechnungsMonatLabel,
