@@ -47,6 +47,8 @@ export function StundenkontenManager({ konten }: Props) {
   const [addBeschreibung, setAddBeschreibung] = useState('');
   const [addDatum, setAddDatum] = useState(new Date().toISOString().split('T')[0]);
   const [addTyp, setAddTyp] = useState<'erfasst' | 'abrechnung'>('erfasst');
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -71,15 +73,21 @@ export function StundenkontenManager({ konten }: Props) {
   };
 
   const handleAdd = async (userId: string) => {
+    setError(null);
     const stunden = parseFloat(addStunden.replace(',', '.'));
-    if (isNaN(stunden) || stunden <= 0) return;
+    if (isNaN(stunden) || stunden <= 0) {
+      setError('Bitte eine gueltige Stundenzahl eingeben');
+      return;
+    }
+
+    setIsSaving(true);
 
     if (addTyp === 'erfasst') {
       const minuten = Math.round(stunden * 60);
       const datum = addDatum || new Date().toISOString().split('T')[0];
       const startTime = new Date(`${datum}T09:00:00`).toISOString();
       const endTime = new Date(`${datum}T09:00:00`).toISOString();
-      await supabase.from('time_entries').insert({
+      const { error: insertError } = await supabase.from('time_entries').insert({
         user_id: userId,
         start_time: startTime,
         end_time: endTime,
@@ -87,18 +95,29 @@ export function StundenkontenManager({ konten }: Props) {
         description: addBeschreibung || 'Manuell vom Admin hinzugefuegt',
         is_manual: true,
       });
+      if (insertError) {
+        setError('Fehler: ' + insertError.message + ' (Code: ' + insertError.code + ')');
+        setIsSaving(false);
+        return;
+      }
     } else {
-      await supabase.from('stunden_abrechnungen').insert({
+      const { error: insertError } = await supabase.from('stunden_abrechnungen').insert({
         user_id: userId,
         stunden,
         beschreibung: addBeschreibung || 'Manuelle Abrechnung vom Admin',
       });
+      if (insertError) {
+        setError('Fehler: ' + insertError.message + ' (Code: ' + insertError.code + ')');
+        setIsSaving(false);
+        return;
+      }
     }
 
     setAddForUser(null);
     setAddStunden('');
     setAddBeschreibung('');
     setAddDatum(new Date().toISOString().split('T')[0]);
+    setIsSaving(false);
     router.refresh();
   };
 
@@ -149,9 +168,12 @@ export function StundenkontenManager({ konten }: Props) {
                         <input type="date" value={addDatum} onChange={(e) => setAddDatum(e.target.value)} className="neu-input w-36 text-sm py-1.5" />
                       )}
                       <input type="text" value={addBeschreibung} onChange={(e) => setAddBeschreibung(e.target.value)} placeholder="Grund / Beschreibung" className="neu-input flex-1 text-sm py-1.5" />
-                      <button onClick={() => handleAdd(konto.id)} className="neu-btn-primary px-3 py-1.5 text-xs">Speichern</button>
-                      <button onClick={() => setAddForUser(null)} className="neu-btn px-2 py-1.5"><X className="h-3.5 w-3.5" style={{ color: 'var(--neu-accent-mid)' }} /></button>
+                      <button onClick={() => handleAdd(konto.id)} disabled={isSaving} className="neu-btn-primary px-3 py-1.5 text-xs disabled:opacity-50">
+                        {isSaving ? 'Speichere...' : 'Speichern'}
+                      </button>
+                      <button onClick={() => { setAddForUser(null); setError(null); }} className="neu-btn px-2 py-1.5"><X className="h-3.5 w-3.5" style={{ color: 'var(--neu-accent-mid)' }} /></button>
                     </div>
+                    {error && <p className="text-xs text-red-500">{error}</p>}
                   </div>
                 )}
 
