@@ -82,43 +82,66 @@ export function StundenkontenManager({ konten }: Props) {
 
     setIsSaving(true);
 
-    if (addTyp === 'erfasst') {
-      const minuten = Math.round(stunden * 60);
-      const datum = addDatum || new Date().toISOString().split('T')[0];
-      const startTime = new Date(`${datum}T09:00:00`).toISOString();
-      const endTime = new Date(`${datum}T09:00:00`).toISOString();
-      const { error: insertError } = await supabase.from('time_entries').insert({
-        user_id: userId,
-        start_time: startTime,
-        end_time: endTime,
-        duration_minutes: minuten,
-        description: addBeschreibung || 'Manuell vom Admin hinzugefuegt',
-        is_manual: true,
-      });
-      if (insertError) {
-        setError('Fehler: ' + insertError.message + ' (Code: ' + insertError.code + ')');
+    try {
+      // Check user is authenticated
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        setError('Nicht angemeldet — bitte neu einloggen. ' + (authError?.message ?? ''));
         setIsSaving(false);
         return;
       }
-    } else {
-      const { error: insertError } = await supabase.from('stunden_abrechnungen').insert({
-        user_id: userId,
-        stunden,
-        beschreibung: addBeschreibung || 'Manuelle Abrechnung vom Admin',
-      });
-      if (insertError) {
-        setError('Fehler: ' + insertError.message + ' (Code: ' + insertError.code + ')');
-        setIsSaving(false);
-        return;
-      }
-    }
 
-    setAddForUser(null);
-    setAddStunden('');
-    setAddBeschreibung('');
-    setAddDatum(new Date().toISOString().split('T')[0]);
-    setIsSaving(false);
-    router.refresh();
+      if (addTyp === 'erfasst') {
+        const minuten = Math.round(stunden * 60);
+        const datum = addDatum || new Date().toISOString().split('T')[0];
+        const startTime = new Date(`${datum}T09:00:00`).toISOString();
+        const endTime = new Date(`${datum}T09:00:00`).toISOString();
+        const { error: insertError, data } = await supabase.from('time_entries').insert({
+          user_id: userId,
+          start_time: startTime,
+          end_time: endTime,
+          duration_minutes: minuten,
+          description: addBeschreibung || 'Manuell vom Admin hinzugefuegt',
+          is_manual: true,
+        }).select();
+        if (insertError) {
+          setError('DB-Fehler: ' + insertError.message + (insertError.code ? ' (' + insertError.code + ')' : '') + (insertError.hint ? ' Hint: ' + insertError.hint : ''));
+          setIsSaving(false);
+          return;
+        }
+        if (!data || data.length === 0) {
+          setError('Eintrag wurde nicht gespeichert (RLS-Policy verhindert Insert). Pruefe dass du Admin bist und Migration 010 ausgefuehrt wurde.');
+          setIsSaving(false);
+          return;
+        }
+      } else {
+        const { error: insertError, data } = await supabase.from('stunden_abrechnungen').insert({
+          user_id: userId,
+          stunden,
+          beschreibung: addBeschreibung || 'Manuelle Abrechnung vom Admin',
+        }).select();
+        if (insertError) {
+          setError('DB-Fehler: ' + insertError.message + (insertError.code ? ' (' + insertError.code + ')' : '') + (insertError.hint ? ' Hint: ' + insertError.hint : ''));
+          setIsSaving(false);
+          return;
+        }
+        if (!data || data.length === 0) {
+          setError('Eintrag wurde nicht gespeichert (RLS-Policy verhindert Insert). Pruefe dass du Admin bist.');
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      setAddForUser(null);
+      setAddStunden('');
+      setAddBeschreibung('');
+      setAddDatum(new Date().toISOString().split('T')[0]);
+      setIsSaving(false);
+      router.refresh();
+    } catch (err) {
+      setError('Unerwarteter Fehler: ' + (err instanceof Error ? err.message : String(err)));
+      setIsSaving(false);
+    }
   };
 
   return (
