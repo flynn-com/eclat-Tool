@@ -1,19 +1,26 @@
 import { LoginForm } from '@/components/auth/login-form';
+import Image from 'next/image';
 
 export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--neu-bg)' }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="h-14 w-14 flex items-center justify-center mx-auto mb-4 rounded-xl" style={{ background: 'var(--neu-surface)', border: '1px solid var(--neu-border)' }}>
-            <span className="font-bold text-2xl" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>é</span>
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/éclat-studios Logo (weiß ohne st).png"
+              alt="éclat studios"
+              width={180}
+              height={60}
+              style={{ objectFit: 'contain' }}
+              priority
+            />
           </div>
-          <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>
-            Firmen-Tool
-          </h1>
-          <p style={{ color: 'var(--neu-text-secondary)' }} className="mt-1 text-sm">Melde dich an, um fortzufahren</p>
+          <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>
+            Melde dich an, um fortzufahren
+          </p>
         </div>
-        <div className="neu-raised-lg p-8">
+        <div className="neu-raised p-8">
           <LoginForm />
         </div>
       </div>

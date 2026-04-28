@@ -100,21 +100,21 @@ body {
 /* ── Inputs ───────────────────────────────────────────────────── */
 
 .neu-input {
-  background: #ffffff;
+  background: var(--neu-surface);
   border: 1px solid var(--neu-border);
   border-radius: 8px;
   padding: 9px 14px;
-  color: #111112;
+  color: var(--neu-text);
   outline: none;
   transition: border-color 0.15s;
 }
 
 .neu-input:focus {
-  border-color: #888890;
+  border-color: #555558;
 }
 
 .neu-input::placeholder {
-  color: #aaaaaa;
+  color: var(--neu-accent-mid);
 }
 
 /* Global override for all native inputs */
@@ -126,10 +126,10 @@ input[type="date"],
 input[type="time"],
 textarea,
 select {
-  background: #ffffff !important;
+  background: var(--neu-surface) !important;
   border: 1px solid var(--neu-border) !important;
   border-radius: 8px !important;
-  color: #111112 !important;
+  color: var(--neu-text) !important;
   outline: none !important;
   box-shadow: none !important;
   padding: 9px 14px;
@@ -138,18 +138,18 @@ select {
 input:focus,
 textarea:focus,
 select:focus {
-  border-color: #888890 !important;
+  border-color: #555558 !important;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #aaaaaa !important;
+  color: var(--neu-accent-mid) !important;
 }
 
 /* Select */
 select {
   appearance: auto;
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 /* Scrollbar */
