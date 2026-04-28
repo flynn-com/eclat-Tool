@@ -8,9 +8,6 @@ export async function createProject(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Nicht angemeldet');
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (profile?.role !== 'admin') throw new Error('Keine Berechtigung');
-
   const name = formData.get('name') as string;
   if (!name?.trim()) throw new Error('Projektname ist erforderlich');
 
@@ -25,9 +22,55 @@ export async function createProject(formData: FormData) {
     created_by: user.id,
   });
 
-  if (error) throw new Error('Projekt konnte nicht erstellt werden');
+  if (error) throw new Error('Projekt konnte nicht erstellt werden: ' + error.message);
 
   revalidatePath('/projekte');
   revalidatePath('/zeiterfassung');
   revalidatePath('/dashboard');
+}
+
+export async function updateProject(projectId: string, formData: FormData) {
+  const supabase = await createClient();
+  const name = formData.get('name') as string;
+  if (!name?.trim()) return { error: 'Projektname ist erforderlich' };
+
+  const { error } = await supabase.from('projects').update({
+    name: name.trim(),
+    description: (formData.get('description') as string) || null,
+    color: (formData.get('color') as string) || '#3B82F6',
+    client_name: (formData.get('client_name') as string) || null,
+    campaign_type: (formData.get('campaign_type') as string) || null,
+    budget: formData.get('budget') ? parseFloat(formData.get('budget') as string) : null,
+    deadline: (formData.get('deadline') as string) || null,
+  }).eq('id', projectId);
+
+  if (error) return { error: error.message };
+  revalidatePath('/projekte');
+  revalidatePath(`/projekte/${projectId}`);
+  return { error: null };
+}
+
+export async function archiveProject(projectId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('projects').update({ status: 'archived' }).eq('id', projectId);
+  if (error) return { error: error.message };
+  revalidatePath('/projekte');
+  return { error: null };
+}
+
+export async function unarchiveProject(projectId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('projects').update({ status: 'active' }).eq('id', projectId);
+  if (error) return { error: error.message };
+  revalidatePath('/projekte');
+  return { error: null };
+}
+
+export async function deleteProject(projectId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('projects').delete().eq('id', projectId);
+  if (error) return { error: error.message };
+  revalidatePath('/projekte');
+  revalidatePath('/dashboard');
+  return { error: null };
 }
