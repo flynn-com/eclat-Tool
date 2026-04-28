@@ -25,8 +25,8 @@ export default async function DashboardPage() {
     supabase.from('time_entries').select('duration_minutes').eq('user_id', user!.id).not('end_time', 'is', null),
     supabase.from('stunden_abrechnungen').select('stunden').eq('user_id', user!.id),
     supabase.from('projects').select('phase').eq('status', 'active'),
-    supabase.from('meeting_tasks').select('*', { count: 'exact', head: true }).eq('assignee_id', user!.id).neq('status', 'erledigt'),
-    supabase.from('project_tasks').select('*', { count: 'exact', head: true }).eq('assignee_id', user!.id).neq('status', 'erledigt'),
+    supabase.from('meeting_tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', user!.id).neq('status', 'erledigt'),
+    supabase.from('project_tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', user!.id).neq('status', 'erledigt'),
   ]);
 
   const isAdmin = profile?.role === 'admin';

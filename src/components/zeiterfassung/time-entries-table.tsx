@@ -55,45 +55,48 @@ interface UserSummary {
 }
 
 function buildUserSummaries(entries: TimeEntryWithRelations[]): UserSummary[] {
-  const map = new Map<string, UserSummary>();
+  // Single-pass O(n): User UND Project-Map gleichzeitig aufbauen
+  const userMap = new Map<string, UserSummary>();
+  const projectMaps = new Map<string, Map<string, { name: string; color: string; minutes: number }>>();
 
   for (const entry of entries) {
-    if (!map.has(entry.user_id)) {
-      map.set(entry.user_id, {
+    if (!userMap.has(entry.user_id)) {
+      userMap.set(entry.user_id, {
         userId: entry.user_id,
         fullName: entry.profiles?.full_name ?? 'Unbekannt',
         totalMinutes: 0,
         projects: [],
         entries: [],
       });
+      projectMaps.set(entry.user_id, new Map());
     }
-    const user = map.get(entry.user_id)!;
+    const user = userMap.get(entry.user_id)!;
+    const projectMap = projectMaps.get(entry.user_id)!;
+
     user.entries.push(entry);
-    if (entry.duration_minutes) {
-      user.totalMinutes += entry.duration_minutes;
+    if (entry.duration_minutes) user.totalMinutes += entry.duration_minutes;
+
+    const key = entry.project_id ?? '__none__';
+    if (!projectMap.has(key)) {
+      projectMap.set(key, {
+        name: entry.projects?.name ?? 'Sonstiges',
+        color: entry.projects?.color ?? '#9CA3AF',
+        minutes: 0,
+      });
     }
+    if (entry.duration_minutes) projectMap.get(key)!.minutes += entry.duration_minutes;
   }
 
-  for (const user of map.values()) {
-    const projectMap = new Map<string, { name: string; color: string; minutes: number }>();
-    for (const entry of user.entries) {
-      const key = entry.project_id ?? '__none__';
-      const name = entry.projects?.name ?? 'Sonstiges';
-      const color = entry.projects?.color ?? '#9CA3AF';
-      if (!projectMap.has(key)) {
-        projectMap.set(key, { name, color, minutes: 0 });
-      }
-      if (entry.duration_minutes) {
-        projectMap.get(key)!.minutes += entry.duration_minutes;
-      }
-    }
+  // Convert project maps to arrays
+  for (const [userId, user] of userMap) {
+    const projectMap = projectMaps.get(userId)!;
     user.projects = Array.from(projectMap.entries()).map(([id, p]) => ({
       projectId: id === '__none__' ? null : id,
       ...p,
     })).sort((a, b) => b.minutes - a.minutes);
   }
 
-  return Array.from(map.values()).sort((a, b) => b.totalMinutes - a.totalMinutes);
+  return Array.from(userMap.values()).sort((a, b) => b.totalMinutes - a.totalMinutes);
 }
 
 export function TimeEntriesTable({ entries, profiles, projects, currentUserId, stundenkonten }: TimeEntriesTableProps) {

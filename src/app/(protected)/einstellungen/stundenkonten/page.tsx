@@ -20,9 +20,21 @@ export default async function StundenkontenPage() {
     supabase.from('stunden_abrechnungen').select('id, user_id, stunden, beschreibung, created_at').order('created_at', { ascending: false }),
   ]);
 
+  // O(1) HashMap-Lookup statt O(n) filter
+  const entriesMap = new Map<string, typeof alleEntries>();
+  const abrechnungenMap = new Map<string, typeof alleAbrechnungen>();
+  for (const e of (alleEntries ?? [])) {
+    if (!entriesMap.has(e.user_id)) entriesMap.set(e.user_id, []);
+    entriesMap.get(e.user_id)!.push(e);
+  }
+  for (const a of (alleAbrechnungen ?? [])) {
+    if (!abrechnungenMap.has(a.user_id)) abrechnungenMap.set(a.user_id, []);
+    abrechnungenMap.get(a.user_id)!.push(a);
+  }
+
   const konten = (profiles ?? []).map((p) => {
-    const userEntries = (alleEntries ?? []).filter((e) => e.user_id === p.id);
-    const userAbrechnungen = (alleAbrechnungen ?? []).filter((e) => e.user_id === p.id);
+    const userEntries = entriesMap.get(p.id) ?? [];
+    const userAbrechnungen = abrechnungenMap.get(p.id) ?? [];
 
     const erfasstMinuten = userEntries.reduce((s, e) => s + (e.duration_minutes ?? 0), 0);
     const abgerechnet = userAbrechnungen.reduce((s, e) => s + Number(e.stunden), 0);

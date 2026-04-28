@@ -15,9 +15,13 @@ export function SharedNotes({ meetingId, initialNotes }: Props) {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const isTypingRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notesRef = useRef(notes);
   const supabase = useMemo(() => createClient(), []);
 
-  // Subscribe to realtime updates from other users
+  // Keep notesRef in sync (avoids stale closures without re-subscribing)
+  useEffect(() => { notesRef.current = notes; }, [notes]);
+
+  // Subscribe to realtime updates from other users (mount once)
   useEffect(() => {
     const channel = supabase
       .channel(`meeting-${meetingId}`)
@@ -26,8 +30,7 @@ export function SharedNotes({ meetingId, initialNotes }: Props) {
         { event: 'UPDATE', schema: 'public', table: 'meetings', filter: `id=eq.${meetingId}` },
         (payload) => {
           const newNotes = (payload.new as { shared_notes: string }).shared_notes;
-          // Only update if user is not currently typing
-          if (!isTypingRef.current && newNotes !== notes) {
+          if (!isTypingRef.current && newNotes !== notesRef.current) {
             setNotes(newNotes);
           }
         }
@@ -37,7 +40,8 @@ export function SharedNotes({ meetingId, initialNotes }: Props) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [meetingId, supabase, notes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meetingId, supabase]);
 
   // Debounced save
   const handleChange = (value: string) => {
