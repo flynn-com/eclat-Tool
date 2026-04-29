@@ -108,8 +108,58 @@ export interface ProjectEquipmentItem {
   quantity: number;
   status: EquipmentStatusType;
   notes: string | null;
+  // Catalog refs
+  catalog_item_id: string | null;
+  package_id: string | null;
+  day_rate: number | null;
+  days_count: number;
   created_at: string;
   updated_at: string;
+}
+
+// ========== Equipment Archive ==========
+
+export type EquipmentCategory = 'kamera' | 'objektiv' | 'licht' | 'ton' | 'stativ' | 'speicher' | 'zubehoer' | 'sonstiges';
+
+export interface EquipmentItem {
+  id: string;
+  name: string;
+  category: EquipmentCategory;
+  description: string | null;
+  owner_id: string | null;
+  serial_number: string | null;
+  purchase_price: number | null;
+  purchase_date: string | null;
+  depreciation_years: number | null;
+  current_value: number | null;
+  warranty_until: string | null;
+  day_rate: number | null;
+  hour_rate: number | null;
+  notes: string | null;
+  status: 'active' | 'archived';
+  created_at: string;
+  updated_at: string;
+  // Joins
+  profiles?: { full_name: string } | null;
+}
+
+export interface EquipmentPackage {
+  id: string;
+  name: string;
+  description: string | null;
+  day_rate: number | null;
+  created_at: string;
+  updated_at: string;
+  // Joins
+  equipment_package_items?: EquipmentPackageItem[];
+}
+
+export interface EquipmentPackageItem {
+  id: string;
+  package_id: string;
+  item_id: string;
+  quantity: number;
+  equipment_items?: EquipmentItem | null;
 }
 
 export interface ProjectScheduleEntry {

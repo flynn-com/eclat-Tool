@@ -18,7 +18,7 @@ export default async function ProduktionPage({ params }: { params: Promise<{ id:
     { data: profiles },
   ] = await Promise.all([
     supabase.from('project_tasks').select('*').eq('project_id', id).eq('phase', 'produktion').order('sort_order'),
-    supabase.from('project_equipment').select('*').eq('project_id', id).order('created_at'),
+    supabase.from('project_equipment').select('*, catalog_item_id, package_id, day_rate, days_count').eq('project_id', id).order('created_at'),
     supabase.from('project_schedule').select('*').eq('project_id', id).order('date'),
     supabase.from('project_team').select('*, profiles(full_name)').eq('project_id', id),
     supabase.from('project_notes').select('*').eq('project_id', id).eq('category', 'produktion_notizen').order('created_at', { ascending: false }),

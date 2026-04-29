@@ -16,6 +16,8 @@ export default async function VorplanungPage({ params }: { params: Promise<{ id:
     { data: equipment },
     { data: schedule },
     { data: profiles },
+    { data: catalogItems },
+    { data: catalogPackages },
   ] = await Promise.all([
     supabase.from('project_notes').select('*').eq('project_id', id).order('created_at', { ascending: false }),
     supabase.from('project_tasks').select('*').eq('project_id', id).eq('phase', 'vorplanung').order('sort_order'),
@@ -23,6 +25,8 @@ export default async function VorplanungPage({ params }: { params: Promise<{ id:
     supabase.from('project_equipment').select('*').eq('project_id', id).order('created_at'),
     supabase.from('project_schedule').select('*').eq('project_id', id).order('date'),
     supabase.from('profiles').select('id, full_name').order('full_name'),
+    supabase.from('equipment_items').select('*').eq('status', 'active').order('category').order('name'),
+    supabase.from('equipment_packages').select('*, equipment_package_items(id, item_id, quantity, equipment_items(*))').order('name'),
   ]);
 
   const notesByCategory = (cat: string) => (notes ?? []).filter((n) => n.category === cat);
@@ -36,7 +40,7 @@ export default async function VorplanungPage({ params }: { params: Promise<{ id:
       <NotesSection projectId={id} category="storyboard_shotlist" notes={notesByCategory('storyboard_shotlist')} title="Storyboard / Shotlist" />
       <NotesSection projectId={id} category="shooting_planung" notes={notesByCategory('shooting_planung')} title="Shooting-Planung" />
       <ScheduleList projectId={id} entries={schedule ?? []} />
-      <EquipmentList projectId={id} items={equipment ?? []} />
+      <EquipmentList projectId={id} items={equipment ?? []} catalogItems={catalogItems ?? []} catalogPackages={catalogPackages ?? []} />
       <TeamList projectId={id} members={team ?? []} profiles={profiles ?? []} title="Team" />
       <TeamList projectId={id} members={team ?? []} profiles={profiles ?? []} title="Models / Talents" filterRole="model_talent" />
       <div className="lg:col-span-2">
