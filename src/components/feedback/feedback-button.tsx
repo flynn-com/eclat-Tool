@@ -67,7 +67,7 @@ export function FeedbackButton() {
       <button
         onClick={handleOpen}
         title="Feedback senden"
-        className="fixed bottom-6 right-6 z-40 h-12 w-12 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95 md:bottom-8 md:right-8"
+        className="feedback-btn-pos fixed right-5 z-40 h-12 w-12 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95 md:right-8"
         style={{
           background: 'var(--neu-surface)',
           border: '1px solid var(--neu-border)',

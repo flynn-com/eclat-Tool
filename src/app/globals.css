@@ -167,3 +167,18 @@ select {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--neu-accent-mid);
 }
+
+/* Feedback button: above mobile nav on small screens, normal position on desktop */
+.feedback-btn-pos {
+  bottom: calc(76px + 12px); /* h-16 (64px) + pb-3 (12px) = 76px nav height */
+}
+@media (min-width: 768px) {
+  .feedback-btn-pos {
+    bottom: 2rem;
+  }
+}
+
+/* Hide scrollbar in mobile nav but keep scroll */
+.mobile-nav-scroll::-webkit-scrollbar {
+  display: none;
+}
