@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { Clock } from 'lucide-react';
+import { Clock, MessageCirclePlus } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { MonatsabrechnungSettingsForm } from '@/components/einstellungen/monatsabrechnung-settings';
 import { VertriebsbonusSettings } from '@/components/einstellungen/vertriebsbonus-settings';
+import { ReportsList } from '@/components/einstellungen/reports-list';
 import {
   loadSettingsServer,
   DEFAULT_MONATSABRECHNUNG,
@@ -11,6 +12,7 @@ import {
   type MonatsabrechnungSettings,
   type Staffel,
 } from '@/lib/settings';
+import { Report } from '@/lib/types';
 
 export default async function EinstellungenPage() {
   const supabase = await createClient();
@@ -24,11 +26,19 @@ export default async function EinstellungenPage() {
 
   if (profile?.role !== 'admin') redirect('/dashboard');
 
-  const maRaw = await loadSettingsServer('monatsabrechnung');
-  const staffelnRaw = await loadSettingsServer('vertrieb_staffeln');
+  const [maRaw, staffelnRaw, { data: reportsRaw }] = await Promise.all([
+    loadSettingsServer('monatsabrechnung'),
+    loadSettingsServer('vertrieb_staffeln'),
+    supabase
+      .from('reports')
+      .select('*, profiles:created_by(full_name)')
+      .order('created_at', { ascending: false }),
+  ]);
 
   const maSettings: MonatsabrechnungSettings = maRaw ?? DEFAULT_MONATSABRECHNUNG;
   const staffeln: Staffel[] = staffelnRaw ?? DEFAULT_STAFFELN;
+  const reports = (reportsRaw ?? []) as (Report & { profiles?: { full_name: string } | null })[];
+  const offeneReports = reports.filter(r => r.status !== 'erledigt').length;
 
   return (
     <div>
@@ -50,6 +60,22 @@ export default async function EinstellungenPage() {
 
         <MonatsabrechnungSettingsForm initial={maSettings} />
         <VertriebsbonusSettings initial={staffeln} />
+
+        {/* Reports */}
+        <div className="neu-raised p-5">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="neu-raised-sm h-10 w-10 flex items-center justify-center" style={{ color: 'var(--neu-accent)' }}>
+              <MessageCirclePlus className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold" style={{ color: 'var(--neu-text)' }}>Feedback & Reports</h3>
+              <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                {offeneReports > 0 ? `${offeneReports} offen` : 'Alle erledigt'} · {reports.length} gesamt
+              </p>
+            </div>
+          </div>
+          <ReportsList reports={reports} />
+        </div>
       </div>
     </div>
   );

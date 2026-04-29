@@ -1,5 +1,20 @@
 export type AppRole = 'admin' | 'employee';
 
+export type ReportType = 'bug' | 'feature' | 'sonstiges';
+export type ReportStatus = 'neu' | 'gesehen' | 'erledigt';
+
+export interface Report {
+  id: string;
+  type: ReportType;
+  title: string;
+  description: string;
+  page_url: string | null;
+  status: ReportStatus;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string;

@@ -17,7 +17,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   LayoutDashboard,
   Clock,
   Calculator,

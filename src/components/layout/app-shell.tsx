@@ -3,6 +3,7 @@
 import { Sidebar } from './sidebar';
 import { MobileNav } from './mobile-nav';
 import { Topbar } from './topbar';
+import { FeedbackButton } from '@/components/feedback/feedback-button';
 import { AppRole } from '@/lib/types';
 
 interface AppShellProps {
@@ -23,6 +24,7 @@ export function AppShell({ role, children }: AppShellProps) {
         </main>
       </div>
       <MobileNav role={role} />
+      <FeedbackButton />
     </div>
   );
 }
