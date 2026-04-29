@@ -14,7 +14,7 @@ export async function createEquipmentItem(data: {
   name: string;
   category: EquipmentCategory;
   description?: string;
-  owner_id?: string;
+  eq_owner_id?: string;
   serial_number?: string;
   purchase_price?: number;
   purchase_date?: string;
@@ -30,7 +30,7 @@ export async function createEquipmentItem(data: {
     name: data.name.trim(),
     category: data.category,
     description: data.description?.trim() || null,
-    owner_id: data.owner_id || null,
+    eq_owner_id: data.eq_owner_id || null,
     serial_number: data.serial_number?.trim() || null,
     purchase_price: data.purchase_price ?? null,
     purchase_date: data.purchase_date || null,
@@ -50,7 +50,7 @@ export async function updateEquipmentItem(id: string, data: {
   name: string;
   category: EquipmentCategory;
   description?: string;
-  owner_id?: string;
+  eq_owner_id?: string;
   serial_number?: string;
   purchase_price?: number;
   purchase_date?: string;
@@ -66,7 +66,7 @@ export async function updateEquipmentItem(id: string, data: {
     name: data.name.trim(),
     category: data.category,
     description: data.description?.trim() || null,
-    owner_id: data.owner_id || null,
+    eq_owner_id: data.eq_owner_id || null,
     serial_number: data.serial_number?.trim() || null,
     purchase_price: data.purchase_price ?? null,
     purchase_date: data.purchase_date || null,
@@ -164,6 +164,27 @@ export async function updateEquipmentPackage(id: string, data: {
 export async function deleteEquipmentPackage(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from('equipment_packages').delete().eq('id', id);
+  if (error) return { error: error.message };
+  revalidate();
+  return { error: null };
+}
+
+// ========== Equipment Owners ==========
+
+export async function createEquipmentOwner(name: string, notes?: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('equipment_owners')
+    .insert({ name: name.trim(), notes: notes?.trim() || null })
+    .select('id, name, notes, created_at')
+    .single();
+  if (error) return { error: error.message, owner: null };
+  revalidate();
+  return { error: null, owner: data };
+}
+
+export async function deleteEquipmentOwner(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('equipment_owners').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidate();
   return { error: null };

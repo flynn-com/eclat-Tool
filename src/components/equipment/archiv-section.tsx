@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { Plus, Pencil, Archive, Trash2, ChevronDown, ChevronUp, Euro } from 'lucide-react';
-import { EquipmentItem, EquipmentCategory } from '@/lib/types';
+import { EquipmentItem, EquipmentCategory, EquipmentOwner } from '@/lib/types';
 import { archiveEquipmentItem, deleteEquipmentItem } from '@/lib/actions/equipment-archive';
 import { ItemFormModal } from './item-form-modal';
 
@@ -30,7 +30,7 @@ const CATEGORY_COLORS: Record<EquipmentCategory, string> = {
 
 interface Props {
   items: EquipmentItem[];
-  profiles: { id: string; full_name: string }[];
+  owners: EquipmentOwner[];
 }
 
 function DepreciationInfo({ item }: { item: EquipmentItem }) {
@@ -43,11 +43,11 @@ function DepreciationInfo({ item }: { item: EquipmentItem }) {
   );
 }
 
-function ItemRow({ item, profiles, onEdit }: { item: EquipmentItem; profiles: { id: string; full_name: string }[]; onEdit: () => void }) {
+function ItemRow({ item, owners, onEdit }: { item: EquipmentItem; owners: EquipmentOwner[]; onEdit: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const owner = profiles.find(p => p.id === item.owner_id);
+  const owner = owners.find(o => o.id === item.eq_owner_id);
 
   function handleArchive() {
     startTransition(async () => {
@@ -111,7 +111,7 @@ function ItemRow({ item, profiles, onEdit }: { item: EquipmentItem; profiles: { 
       {/* Expanded details */}
       {expanded && (
         <div className="px-4 pb-4 pt-1 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2" style={{ background: 'var(--neu-bg)', borderTop: '1px solid var(--neu-border-subtle)' }}>
-          {owner && <Detail label="Inhaber" value={owner.full_name} />}
+          {owner && <Detail label="Inhaber" value={owner.name} />}
           {item.serial_number && <Detail label="Seriennummer" value={item.serial_number} />}
           {item.hour_rate != null && <Detail label="Stundensatz" value={`${item.hour_rate.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`} />}
           {item.purchase_price != null && <Detail label="Anschaffungspreis" value={`${item.purchase_price.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`} />}
@@ -144,7 +144,7 @@ function Detail({ label, value, highlight, children }: { label: string; value: s
   );
 }
 
-export function ArchivSection({ items, profiles }: Props) {
+export function ArchivSection({ items, owners }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<EquipmentItem | null>(null);
   const [filterCat, setFilterCat] = useState<string>('alle');
@@ -204,7 +204,7 @@ export function ArchivSection({ items, profiles }: Props) {
       {/* Items */}
       <div className="space-y-2">
         {visibleItems.map(item => (
-          <ItemRow key={item.id} item={item} profiles={profiles} onEdit={() => setEditItem(item)} />
+          <ItemRow key={item.id} item={item} owners={owners} onEdit={() => setEditItem(item)} />
         ))}
         {visibleItems.length === 0 && (
           <div className="py-12 text-center" style={{ color: 'var(--neu-accent-mid)' }}>
@@ -216,10 +216,10 @@ export function ArchivSection({ items, profiles }: Props) {
 
       {/* Modals */}
       {showForm && (
-        <ItemFormModal profiles={profiles} onClose={() => setShowForm(false)} />
+        <ItemFormModal owners={owners} onClose={() => setShowForm(false)} />
       )}
       {editItem && (
-        <ItemFormModal item={editItem} profiles={profiles} onClose={() => setEditItem(null)} />
+        <ItemFormModal item={editItem} owners={owners} onClose={() => setEditItem(null)} />
       )}
     </div>
   );

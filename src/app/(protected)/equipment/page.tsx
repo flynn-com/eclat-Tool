@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { EquipmentItem, EquipmentPackage } from '@/lib/types';
+import { EquipmentItem, EquipmentPackage, EquipmentOwner } from '@/lib/types';
 import { ArchivSection } from '@/components/equipment/archiv-section';
 import { PaketeSection } from '@/components/equipment/pakete-section';
 import { EquipmentTabs } from '@/components/equipment/equipment-tabs';
@@ -10,21 +10,21 @@ export default async function EquipmentPage() {
   const [
     { data: itemsRaw },
     { data: packagesRaw },
-    { data: profiles },
+    { data: ownersRaw },
   ] = await Promise.all([
     supabase.from('equipment_items')
-      .select('*, profiles:owner_id(full_name)')
+      .select('*, equipment_owners:eq_owner_id(id, name, notes, created_at)')
       .order('category')
       .order('name'),
     supabase.from('equipment_packages')
       .select('*, equipment_package_items(id, item_id, quantity, equipment_items(*))')
       .order('name'),
-    supabase.from('profiles').select('id, full_name').order('full_name'),
+    supabase.from('equipment_owners').select('*').order('name'),
   ]);
 
   const items = (itemsRaw ?? []) as EquipmentItem[];
   const packages = (packagesRaw ?? []) as EquipmentPackage[];
-  const profileList = profiles ?? [];
+  const owners = (ownersRaw ?? []) as EquipmentOwner[];
 
   const activeCount = items.filter(i => i.status === 'active').length;
 
@@ -62,7 +62,7 @@ export default async function EquipmentPage() {
       </div>
 
       <EquipmentTabs
-        archivContent={<ArchivSection items={items} profiles={profileList} />}
+        archivContent={<ArchivSection items={items} owners={owners} />}
         paketeContent={<PaketeSection packages={packages} allItems={items} />}
       />
     </div>

@@ -117,6 +117,15 @@ export interface ProjectEquipmentItem {
   updated_at: string;
 }
 
+// ========== Equipment Owners ==========
+
+export interface EquipmentOwner {
+  id: string;
+  name: string;
+  notes: string | null;
+  created_at: string;
+}
+
 // ========== Equipment Archive ==========
 
 export type EquipmentCategory = 'kamera' | 'objektiv' | 'licht' | 'ton' | 'stativ' | 'speicher' | 'zubehoer' | 'sonstiges';
@@ -126,7 +135,8 @@ export interface EquipmentItem {
   name: string;
   category: EquipmentCategory;
   description: string | null;
-  owner_id: string | null;
+  owner_id: string | null;       // legacy: FK profiles
+  eq_owner_id: string | null;    // FK equipment_owners
   serial_number: string | null;
   purchase_price: number | null;
   purchase_date: string | null;
@@ -141,6 +151,7 @@ export interface EquipmentItem {
   updated_at: string;
   // Joins
   profiles?: { full_name: string } | null;
+  equipment_owners?: EquipmentOwner | null;
 }
 
 export interface EquipmentPackage {

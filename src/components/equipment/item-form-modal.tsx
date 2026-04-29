@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { X } from 'lucide-react';
-import { EquipmentItem, EquipmentCategory } from '@/lib/types';
-import { createEquipmentItem, updateEquipmentItem } from '@/lib/actions/equipment-archive';
+import { X, Plus, Trash2 } from 'lucide-react';
+import { EquipmentItem, EquipmentCategory, EquipmentOwner } from '@/lib/types';
+import { createEquipmentItem, updateEquipmentItem, createEquipmentOwner, deleteEquipmentOwner } from '@/lib/actions/equipment-archive';
 
 const CATEGORIES: { value: EquipmentCategory; label: string }[] = [
   { value: 'kamera',    label: 'Kamera' },
@@ -18,7 +18,7 @@ const CATEGORIES: { value: EquipmentCategory; label: string }[] = [
 
 interface Props {
   item?: EquipmentItem;
-  profiles: { id: string; full_name: string }[];
+  owners: EquipmentOwner[];
   onClose: () => void;
 }
 
@@ -26,7 +26,118 @@ function numOrEmpty(v: number | null | undefined): string {
   return v != null ? String(v) : '';
 }
 
-export function ItemFormModal({ item, profiles, onClose }: Props) {
+// Inline Owner Manager: shown inside the form as a small panel
+function OwnerManager({
+  owners,
+  selected,
+  onSelect,
+}: {
+  owners: EquipmentOwner[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [isAdding, startAdd] = useTransition();
+  const [isDeleting, startDelete] = useTransition();
+  const [localOwners, setLocalOwners] = useState<EquipmentOwner[]>(owners);
+
+  function handleAdd() {
+    if (!newName.trim()) return;
+    startAdd(async () => {
+      const result = await createEquipmentOwner(newName.trim());
+      if (!result.error && result.owner) {
+        setLocalOwners(prev => [...prev, result.owner!]);
+        onSelect(result.owner!.id);
+      }
+      setNewName('');
+      setShowAdd(false);
+    });
+  }
+
+  function handleDelete(id: string) {
+    if (!confirm('Inhaber löschen?')) return;
+    startDelete(async () => {
+      await deleteEquipmentOwner(id);
+      setLocalOwners(prev => prev.filter(o => o.id !== id));
+      if (selected === id) onSelect('');
+    });
+  }
+
+  return (
+    <div>
+      <div className="flex gap-2">
+        <select
+          value={selected}
+          onChange={e => onSelect(e.target.value)}
+          className="w-full text-sm flex-1"
+        >
+          <option value="">— kein Inhaber —</option>
+          {localOwners.map(o => (
+            <option key={o.id} value={o.id}>{o.name}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => setShowAdd(!showAdd)}
+          className="neu-btn h-9 w-9 flex items-center justify-center shrink-0"
+          title="Neuen Inhaber hinzufügen"
+        >
+          <Plus className="h-4 w-4" style={{ color: 'var(--neu-accent)' }} />
+        </button>
+      </div>
+
+      {/* Add new owner inline */}
+      {showAdd && (
+        <div className="mt-2 flex gap-2">
+          <input
+            autoFocus
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
+            placeholder="Name des Inhabers"
+            className="flex-1 text-sm"
+          />
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={isAdding || !newName.trim()}
+            className="neu-btn-primary px-3 py-1.5 text-sm disabled:opacity-40"
+          >
+            {isAdding ? '…' : 'Hinzufügen'}
+          </button>
+          <button type="button" onClick={() => { setShowAdd(false); setNewName(''); }} className="neu-btn px-3 py-1.5 text-sm">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Owner list with delete */}
+      {localOwners.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {localOwners.map(o => (
+            <div key={o.id} className="flex items-center gap-2 px-2 py-1 rounded-lg group"
+              style={{ background: selected === o.id ? 'var(--neu-surface)' : 'transparent' }}>
+              <span className="flex-1 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>{o.name}</span>
+              <button
+                type="button"
+                onClick={() => handleDelete(o.id)}
+                disabled={isDeleting}
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ color: 'var(--neu-accent-mid)' }}
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ItemFormModal({ item, owners, onClose }: Props) {
   const isEdit = !!item;
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +145,7 @@ export function ItemFormModal({ item, profiles, onClose }: Props) {
   const [name, setName] = useState(item?.name ?? '');
   const [category, setCategory] = useState<EquipmentCategory>(item?.category ?? 'sonstiges');
   const [description, setDescription] = useState(item?.description ?? '');
-  const [ownerId, setOwnerId] = useState(item?.owner_id ?? '');
+  const [eqOwnerId, setEqOwnerId] = useState(item?.eq_owner_id ?? '');
   const [serial, setSerial] = useState(item?.serial_number ?? '');
   const [purchasePrice, setPurchasePrice] = useState(numOrEmpty(item?.purchase_price));
   const [purchaseDate, setPurchaseDate] = useState(item?.purchase_date ?? '');
@@ -45,7 +156,6 @@ export function ItemFormModal({ item, profiles, onClose }: Props) {
   const [hourRate, setHourRate] = useState(numOrEmpty(item?.hour_rate));
   const [notes, setNotes] = useState(item?.notes ?? '');
 
-  // Auto-calculate current value from depreciation
   const calcDepreciation = () => {
     const price = parseFloat(purchasePrice);
     const years = parseInt(depYears);
@@ -66,7 +176,7 @@ export function ItemFormModal({ item, profiles, onClose }: Props) {
       name,
       category,
       description: description || undefined,
-      owner_id: ownerId || undefined,
+      eq_owner_id: eqOwnerId || undefined,
       serial_number: serial || undefined,
       purchase_price: purchasePrice ? parseFloat(purchasePrice) : undefined,
       purchase_date: purchaseDate || undefined,
@@ -135,12 +245,12 @@ export function ItemFormModal({ item, profiles, onClose }: Props) {
                       rows={2} className="w-full text-sm resize-none" placeholder="Kurze Beschreibung..." />
                   ))}
                 </div>
-                {field('Inhaber', (
-                  <select value={ownerId} onChange={e => setOwnerId(e.target.value)} className="w-full text-sm">
-                    <option value="">— kein Inhaber —</option>
-                    {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                  </select>
-                ))}
+                <div className="sm:col-span-2">
+                  {field('Inhaber',
+                    <OwnerManager owners={owners} selected={eqOwnerId} onSelect={setEqOwnerId} />,
+                    'Wähle einen Inhaber oder füge einen neuen hinzu (+ Button)'
+                  )}
+                </div>
                 {field('Seriennummer', inp(serial, setSerial, { placeholder: 'optional' }))}
               </div>
             </div>
@@ -164,7 +274,7 @@ export function ItemFormModal({ item, profiles, onClose }: Props) {
                 {field('Aktueller Wert (€)',
                   <div className="flex gap-2">
                     {inp(currentValue, setCurrentValue, { type: 'number', min: '0', step: '0.01', placeholder: '0.00' })}
-                    <button type="button" onClick={calcDepreciation} title="Auto-berechnen"
+                    <button type="button" onClick={calcDepreciation}
                       className="neu-btn shrink-0 px-2 text-xs whitespace-nowrap">
                       Berechnen
                     </button>
