@@ -202,10 +202,22 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
 
     const teilnehmer = personen.filter((p) => p.gesamtStunden > 0);
 
-    // Wenn keine Stunden oder keine verteilbare Summe: leere Abrechnung (nur Kostenerfassung)
-    if (teilnehmer.length === 0 || abrechnungsgrundlage <= 0) {
+    // Wenn keine verteilbare Summe: Abrechnung mit 0-Auszahlung (nur Kostenerfassung)
+    if (abrechnungsgrundlage <= 0) {
+      const ergebnisPersonen: PersonErgebnis[] = teilnehmer.map((p) => ({
+        id: p.id,
+        name: p.name,
+        uebertragStunden: p.uebertragStunden,
+        monatsStunden: p.monatsStunden,
+        gesamtStunden: p.gesamtStunden,
+        zugeteilteStunden: 0,
+        abzurechnendeStunden: 0,
+        anteil: 0,
+        bonus: boniProPerson(p.id),
+        auszahlung: boniProPerson(p.id),
+      }));
       setErgebnis({
-        personen: [],
+        personen: ergebnisPersonen,
         gesamtSumme,
         steuerruecklage,
         investruecklage,
@@ -214,9 +226,14 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
         anteileTopf: 0,
         stundenTopf: 0,
         maxStunden: 0,
-        gesamtAuszahlung: 0,
+        gesamtAuszahlung: ergebnisPersonen.reduce((s, p) => s + p.auszahlung, 0),
         restStundenBudget: 0,
       });
+      return;
+    }
+
+    if (teilnehmer.length === 0) {
+      setFehler('Kein Mitarbeiter hat Stunden auf dem Konto.');
       return;
     }
 
