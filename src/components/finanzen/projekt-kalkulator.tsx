@@ -31,17 +31,10 @@ interface EquipmentItem {
   day_rate: number | null;
 }
 
-interface EquipmentPaketItem {
-  equipment_item_id: string;
-  name: string;
-  day_rate: number | null;
-  quantity: number;
-}
-
 interface EquipmentPaket {
   id: string;
   name: string;
-  items: EquipmentPaketItem[];
+  day_rate: number | null;
 }
 
 interface Kunde {
@@ -346,15 +339,16 @@ export function ProjektKalkulator({ pakete, equipmentItems, equipmentPakete, set
   }
 
   function addEquipmentPaket(paket: EquipmentPaket) {
-    const rows: EquipmentRow[] = paket.items.map((item) => ({
-      id: `eq-${Date.now()}-${item.equipment_item_id}`,
-      name: item.name,
-      tagessatz: item.day_rate !== null ? String(item.day_rate) : '',
-      tage: String(item.quantity ?? 1),
-    }));
-    setEquipment((prev) => [...prev, ...rows]);
+    setEquipment((prev) => [
+      ...prev,
+      {
+        id: `eq-${Date.now()}`,
+        name: paket.name,
+        tagessatz: paket.day_rate !== null ? String(paket.day_rate) : '',
+        tage: '1',
+      },
+    ]);
     setShowEquipmentPicker(false);
-    setEquipmentSearch('');
   }
 
   function updateEquipmentRow(id: string, field: 'tagessatz' | 'tage', value: string) {
@@ -884,9 +878,11 @@ export function ProjektKalkulator({ pakete, equipmentItems, equipmentPakete, set
                             <span className="text-sm font-medium" style={{ color: 'var(--neu-text)' }}>
                               {paket.name}
                             </span>
-                            <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
-                              {paket.items.length} Item{paket.items.length !== 1 ? 's' : ''}
-                            </span>
+                            {paket.day_rate !== null && (
+                              <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                                {paket.day_rate.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Tag
+                              </span>
+                            )}
                           </div>
                           <button
                             className="neu-btn-primary text-xs px-2 py-1 ml-2"

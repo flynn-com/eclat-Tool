@@ -34,7 +34,7 @@ export default async function ProjektkalkulationPage() {
     loadSettingsServer('monatsabrechnung'),
     supabase
       .from('equipment_packages')
-      .select('id, name, equipment_package_items(item_id, quantity, equipment_items(id, name, day_rate))')
+      .select('id, name, day_rate, equipment_package_items(item_id, quantity, equipment_items(id, name, day_rate))')
       .order('name', { ascending: true }),
     supabase
       .from('kunden')
@@ -85,27 +85,11 @@ export default async function ProjektkalkulationPage() {
     stundensatz: Number(p.stundensatz),
   }));
 
-  const equipmentPakete = (eqPaketeRaw ?? []).map((p) => {
-    type RawItem = { item_id: unknown; quantity: unknown; equipment_items: unknown };
-    type RawEqItem = { id: unknown; name: unknown; day_rate: unknown };
-    return {
-      id: p.id as string,
-      name: p.name as string,
-      items: ((p.equipment_package_items ?? []) as RawItem[])
-        .map((i) => {
-          const eqArr = i.equipment_items as RawEqItem[] | RawEqItem | null;
-          const eq = Array.isArray(eqArr) ? eqArr[0] : eqArr;
-          if (!eq) return null;
-          return {
-            equipment_item_id: i.item_id as string,
-            name: eq.name as string,
-            day_rate: eq.day_rate !== null ? Number(eq.day_rate) : null,
-            quantity: Number(i.quantity ?? 1),
-          };
-        })
-        .filter((i): i is NonNullable<typeof i> => i !== null),
-    };
-  });
+  const equipmentPakete = (eqPaketeRaw ?? []).map((p) => ({
+    id: p.id as string,
+    name: p.name as string,
+    day_rate: p.day_rate !== null ? Number(p.day_rate) : null,
+  }));
 
   return (
     <div>
