@@ -631,97 +631,107 @@ export function ProjektKalkulator({ leistungen, equipmentItems, equipmentPakete,
       </div>
 
       {/* Section 2b: Personas direkt */}
-      {personas.length > 0 && (
-        <div className="neu-raised p-5">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h2 className="text-base font-semibold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>
-              Personas
-            </h2>
-            <div className="relative">
-              <button
-                className="neu-btn flex items-center gap-2 text-sm px-3 py-2"
-                onClick={() => setShowPersonaDropdown((v) => !v)}
+      <div className="neu-raised p-5">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="text-base font-semibold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>
+            Personas
+          </h2>
+          <div className="relative">
+            <button
+              className="neu-btn flex items-center gap-2 text-sm px-3 py-2"
+              onClick={() => setShowPersonaDropdown((v) => !v)}
+              disabled={personas.length === 0}
+            >
+              <Plus className="h-4 w-4" />
+              Persona hinzufügen
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+            {showPersonaDropdown && personas.length > 0 && (
+              <div
+                className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-lg min-w-[200px] overflow-hidden"
+                style={{ background: 'var(--neu-surface)', border: '1px solid var(--neu-border)' }}
               >
-                <Plus className="h-4 w-4" />
-                Persona hinzufügen
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-              {showPersonaDropdown && (
-                <div
-                  className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-lg min-w-[200px] overflow-hidden"
-                  style={{ background: 'var(--neu-surface)', border: '1px solid var(--neu-border)' }}
+                {personas.map((p) => (
+                  <button
+                    key={p.id}
+                    className="w-full text-left px-4 py-2.5 text-sm transition-opacity hover:opacity-70"
+                    style={{ color: 'var(--neu-text)' }}
+                    onClick={() => addPersonaDirect(p)}
+                  >
+                    <span className="font-medium">{p.name}</span>
+                    <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                      {p.stundensatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Std
+                    </span>
+                  </button>
+                ))}
+                <button
+                  className="w-full text-left px-4 py-2 text-xs border-t"
+                  style={{ color: 'var(--neu-text-secondary)', borderColor: 'var(--neu-border)' }}
+                  onClick={() => setShowPersonaDropdown(false)}
                 >
-                  {personas.map((p) => (
-                    <button
-                      key={p.id}
-                      className="w-full text-left px-4 py-2.5 text-sm transition-opacity hover:opacity-70"
-                      style={{ color: 'var(--neu-text)' }}
-                      onClick={() => addPersonaDirect(p)}
-                    >
-                      <span className="font-medium">{p.name}</span>
-                      <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
-                        {p.stundensatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Std
-                      </span>
-                    </button>
-                  ))}
-                  <button
-                    className="w-full text-left px-4 py-2 text-xs border-t"
-                    style={{ color: 'var(--neu-text-secondary)', borderColor: 'var(--neu-border)' }}
-                    onClick={() => setShowPersonaDropdown(false)}
-                  >
-                    Schließen
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {personaDirect.length === 0 && (
-            <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>
-              Keine direkten Persona-Zeiten. Füge Personas direkt hinzu für Zeiten außerhalb von Leistungen.
-            </p>
-          )}
-
-          <div className="space-y-2">
-            {personaDirect.map((pd) => {
-              const persona = personas.find((p) => p.id === pd.personaId);
-              if (!persona) return null;
-              const stunden = parseFloat(pd.stunden.replace(',', '.')) || 0;
-              const kosten = stunden * persona.stundensatz;
-              return (
-                <div key={pd.id} className="neu-pressed px-3 py-2 rounded-xl flex items-center gap-3 flex-wrap">
-                  <PersonaBadge persona={persona} />
-                  <span className="text-xs flex-1" style={{ color: 'var(--neu-text-secondary)' }}>
-                    {persona.stundensatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Std
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      className="neu-input text-sm w-20"
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      value={pd.stunden}
-                      onChange={(e) => updatePersonaDirectStunden(pd.id, e.target.value)}
-                    />
-                    <StundenQuickset onSet={(v) => updatePersonaDirectStunden(pd.id, v)} />
-                    <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Std</span>
-                  </div>
-                  <span className="text-sm font-medium w-24 text-right" style={{ color: 'var(--neu-text)' }}>
-                    {eur(kosten)}
-                  </span>
-                  <button
-                    onClick={() => removePersonaDirect(pd.id)}
-                    className="p-1 hover:opacity-70"
-                    style={{ color: '#ef4444' }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              );
-            })}
+                  Schließen
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      )}
+
+        {personas.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>
+            Noch keine Personas angelegt.{' '}
+            <a
+              href="/finanzen/leistungen"
+              className="underline hover:opacity-70"
+              style={{ color: 'var(--neu-accent)' }}
+            >
+              Personas verwalten →
+            </a>
+          </p>
+        ) : personaDirect.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>
+            Keine Persona-Zeiten hinzugefügt.
+          </p>
+        ) : null}
+
+        <div className="space-y-2">
+          {personaDirect.map((pd) => {
+            const persona = personas.find((p) => p.id === pd.personaId);
+            if (!persona) return null;
+            const stunden = parseFloat(pd.stunden.replace(',', '.')) || 0;
+            const kosten = stunden * persona.stundensatz;
+            return (
+              <div key={pd.id} className="neu-pressed px-3 py-2 rounded-xl flex items-center gap-3 flex-wrap">
+                <PersonaBadge persona={persona} />
+                <span className="text-xs flex-1" style={{ color: 'var(--neu-text-secondary)' }}>
+                  {persona.stundensatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Std
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    className="neu-input text-sm w-20"
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={pd.stunden}
+                    onChange={(e) => updatePersonaDirectStunden(pd.id, e.target.value)}
+                  />
+                  <StundenQuickset onSet={(v) => updatePersonaDirectStunden(pd.id, v)} />
+                  <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Std</span>
+                </div>
+                <span className="text-sm font-medium w-24 text-right" style={{ color: 'var(--neu-text)' }}>
+                  {eur(kosten)}
+                </span>
+                <button
+                  onClick={() => removePersonaDirect(pd.id)}
+                  className="p-1 hover:opacity-70"
+                  style={{ color: '#ef4444' }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Section 3: Equipment */}
       <div className="neu-raised p-5">
