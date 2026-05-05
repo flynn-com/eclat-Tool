@@ -37,7 +37,7 @@ export interface WidgetData {
 function fmt(minutes: number) {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return `${h}h ${m.toString().padStart(2, '0')}m`;
+  return `${h} Std ${m.toString().padStart(2, '0')} Min`;
 }
 function eur(v: number) {
   return v.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
@@ -79,12 +79,12 @@ export function WidgetContent({ widgetKey, data }: { widgetKey: string; data: Wi
     // ── Zeiterfassung ──────────────────────────────────
     case 'zeiterfassung_mini': {
       return (
-        <a href="/zeiterfassung" className="block h-full">
-          <p className="text-xs mb-2" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
-          <p className="text-2xl font-bold mb-1" style={{ color: 'var(--neu-text)' }}>
+        <a href="/zeiterfassung" className="flex flex-col justify-between h-full">
+          <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
+          <p className="text-4xl font-bold leading-tight" style={{ color: 'var(--neu-text)' }}>
             {fmt(data.verfuegbarMinutes ?? 0)}
           </p>
-          <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
+          <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
         </a>
       );
     }
@@ -93,29 +93,33 @@ export function WidgetContent({ widgetKey, data }: { widgetKey: string; data: Wi
       const projects = data.userProjectBreakdown ?? [];
       const maxMin = Math.max(...projects.map(p => p.minutes), 1);
       return (
-        <a href="/zeiterfassung" className="block h-full flex flex-col">
-          <p className="text-xs mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
-          <p className="text-2xl font-bold mb-0.5" style={{ color: 'var(--neu-text)' }}>
+        <a href="/zeiterfassung" className="flex flex-col h-full">
+          {/* Header */}
+          <p className="text-sm mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
+          <p className="text-4xl font-bold leading-tight mb-1" style={{ color: 'var(--neu-text)' }}>
             {fmt(data.verfuegbarMinutes ?? 0)}
           </p>
-          <p className="text-xs mb-4" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
-          <div className="space-y-2.5 flex-1">
+          <p className="text-sm mb-5" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
+
+          {/* Project bars */}
+          <div className="flex flex-col gap-3 flex-1">
             {projects.slice(0, 5).map(p => (
-              <div key={p.name} className="flex items-center gap-3">
-                <span className="text-xs w-20 truncate shrink-0" style={{ color: 'var(--neu-text)' }}>{p.name}</span>
-                <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--neu-surface)' }}>
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.round((p.minutes / maxMin) * 100)}%`,
-                      background: p.color || '#10b981',
-                    }}
-                  />
-                </div>
+              <div key={p.name} className="flex items-center gap-4">
+                <span className="text-sm w-24 shrink-0 truncate" style={{ color: 'var(--neu-text)' }}>
+                  {p.name}
+                </span>
+                <div
+                  className="h-2.5 rounded-full"
+                  style={{
+                    width: `${Math.round((p.minutes / maxMin) * 100)}%`,
+                    background: p.color || '#10b981',
+                    minWidth: '4px',
+                  }}
+                />
               </div>
             ))}
             {projects.length === 0 && (
-              <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Keine Zeiteinträge vorhanden</p>
+              <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Keine Zeiteinträge vorhanden</p>
             )}
           </div>
         </a>
@@ -126,63 +130,62 @@ export function WidgetContent({ widgetKey, data }: { widgetKey: string; data: Wi
       const projects = data.userProjectBreakdown ?? [];
       const maxMin = Math.max(...projects.map(p => p.minutes), 1);
       const team = data.teamMemberHours ?? [];
-      const maxTeamMin = Math.max(...team.map(t => t.minutes), 1);
       const TEAM_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#10b981'];
 
       return (
-        <a href="/zeiterfassung" className="block h-full">
-          <div className="grid grid-cols-2 gap-6 h-full">
-            {/* Left: own projects */}
-            <div className="flex flex-col">
-              <p className="text-xs mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
-              <p className="text-xl font-bold mb-0.5" style={{ color: 'var(--neu-text)' }}>
-                {fmt(data.verfuegbarMinutes ?? 0)}
-              </p>
-              <p className="text-xs mb-3" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
-              <div className="space-y-2.5 flex-1">
-                {projects.slice(0, 5).map(p => (
-                  <div key={p.name} className="flex items-center gap-3">
-                    <span className="text-xs w-16 truncate shrink-0" style={{ color: 'var(--neu-text)' }}>{p.name}</span>
-                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--neu-surface)' }}>
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.round((p.minutes / maxMin) * 100)}%`,
-                          background: p.color || '#10b981',
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-                {projects.length === 0 && (
-                  <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Keine Einträge</p>
-                )}
-              </div>
-            </div>
-
-            {/* Right: team members */}
-            <div className="space-y-3">
-              {team.map((member, idx) => (
-                <div key={member.id}>
-                  <p className="text-sm font-semibold mb-0.5" style={{ color: 'var(--neu-text)' }}>{member.name}</p>
-                  <p className="text-xs mb-1.5" style={{ color: 'var(--neu-text-secondary)' }}>
-                    {fmt(member.minutes)}
-                  </p>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--neu-surface)' }}>
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.round((member.minutes / maxTeamMin) * 100)}%`,
-                        background: TEAM_COLORS[idx % TEAM_COLORS.length],
-                      }}
-                    />
-                  </div>
+        <a href="/zeiterfassung" className="flex h-full gap-8">
+          {/* Left: own projects */}
+          <div className="flex flex-col flex-1 min-w-0">
+            <p className="text-sm mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
+            <p className="text-4xl font-bold leading-tight mb-1" style={{ color: 'var(--neu-text)' }}>
+              {fmt(data.verfuegbarMinutes ?? 0)}
+            </p>
+            <p className="text-sm mb-5" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
+            <div className="flex flex-col gap-3 flex-1">
+              {projects.slice(0, 4).map(p => (
+                <div key={p.name} className="flex items-center gap-4">
+                  <span className="text-sm w-24 shrink-0 truncate" style={{ color: 'var(--neu-text)' }}>
+                    {p.name}
+                  </span>
+                  <div
+                    className="h-2.5 rounded-full"
+                    style={{
+                      width: `${Math.round((p.minutes / maxMin) * 100)}%`,
+                      background: p.color || '#10b981',
+                      minWidth: '4px',
+                    }}
+                  />
                 </div>
               ))}
-              {team.length === 0 && (
-                <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Keine weiteren Mitglieder</p>
+              {projects.length === 0 && (
+                <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Keine Einträge</p>
               )}
             </div>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px shrink-0 self-stretch" style={{ background: 'var(--neu-border-subtle)' }} />
+
+          {/* Right: team members */}
+          <div className="flex flex-col gap-5 flex-1 min-w-0 justify-center">
+            {team.slice(0, 3).map((member, idx) => (
+              <div key={member.id}>
+                <p className="text-xl font-bold mb-0.5" style={{ color: 'var(--neu-text)' }}>{member.name}</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--neu-text-secondary)' }}>
+                  {fmt(member.minutes)}
+                </p>
+                <div
+                  className="h-2.5 rounded-full"
+                  style={{
+                    width: '80%',
+                    background: TEAM_COLORS[idx % TEAM_COLORS.length],
+                  }}
+                />
+              </div>
+            ))}
+            {team.length === 0 && (
+              <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Keine weiteren Mitglieder</p>
+            )}
           </div>
         </a>
       );
