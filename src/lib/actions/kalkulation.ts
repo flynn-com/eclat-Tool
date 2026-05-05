@@ -4,86 +4,38 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 
 function revalidate() {
-  revalidatePath('/finanzen/pakete');
+  revalidatePath('/finanzen/leistungen');
   revalidatePath('/finanzen/projektkalkulation');
 }
 
-// ========== Pakete ==========
+// ========== Leistungen ==========
 
-export async function createPaket(name: string, beschreibung: string) {
+export async function createLeistung(name: string, beschreibung: string, stundensatz: number) {
   const supabase = await createClient();
-  const { error } = await supabase.from('kalkulation_pakete').insert({
+  const { error } = await supabase.from('kalkulation_leistungen').insert({
     name: name.trim(),
     beschreibung: beschreibung.trim() || null,
+    stundensatz,
   });
   if (error) return { error: error.message };
   revalidate();
   return { error: null };
 }
 
-export async function updatePaket(id: string, name: string, beschreibung: string) {
+export async function updateLeistung(id: string, name: string, beschreibung: string, stundensatz: number) {
   const supabase = await createClient();
   const { error } = await supabase
-    .from('kalkulation_pakete')
-    .update({ name: name.trim(), beschreibung: beschreibung.trim() || null })
+    .from('kalkulation_leistungen')
+    .update({ name: name.trim(), beschreibung: beschreibung.trim() || null, stundensatz })
     .eq('id', id);
   if (error) return { error: error.message };
   revalidate();
   return { error: null };
 }
 
-export async function deletePaket(id: string) {
+export async function deleteLeistung(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from('kalkulation_pakete').delete().eq('id', id);
-  if (error) return { error: error.message };
-  revalidate();
-  return { error: null };
-}
-
-// ========== Positionen ==========
-
-export async function createPosition(
-  paketId: string,
-  bezeichnung: string,
-  stunden: number,
-  sortOrder: number,
-  personaId?: string | null
-) {
-  const supabase = await createClient();
-  const { error } = await supabase.from('kalkulation_paket_positionen').insert({
-    paket_id: paketId,
-    bezeichnung: bezeichnung.trim(),
-    stunden,
-    sort_order: sortOrder,
-    persona_id: personaId ?? null,
-  });
-  if (error) return { error: error.message };
-  revalidate();
-  return { error: null };
-}
-
-export async function updatePosition(
-  id: string,
-  bezeichnung: string,
-  stunden: number,
-  personaId?: string | null
-) {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('kalkulation_paket_positionen')
-    .update({ bezeichnung: bezeichnung.trim(), stunden, persona_id: personaId ?? null })
-    .eq('id', id);
-  if (error) return { error: error.message };
-  revalidate();
-  return { error: null };
-}
-
-export async function deletePosition(id: string) {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('kalkulation_paket_positionen')
-    .delete()
-    .eq('id', id);
+  const { error } = await supabase.from('kalkulation_leistungen').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidate();
   return { error: null };
@@ -121,4 +73,3 @@ export async function deletePersona(id: string) {
   revalidate();
   return { error: null };
 }
-

@@ -127,10 +127,10 @@ export default async function FinanzenPage() {
           <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Projektkalkulation</h3>
           <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Was kostet ein Projekt?</p>
         </Link>
-        <Link href="/finanzen/pakete" className="neu-raised p-6 block transition-all hover:opacity-90">
+        <Link href="/finanzen/leistungen" className="neu-raised p-6 block transition-all hover:opacity-90">
           <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Package className="h-6 w-6" /></div>
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Leistungspakete</h3>
-          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Pakete für Kalkulationen verwalten</p>
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Leistungen</h3>
+          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Leistungen und Personas verwalten</p>
         </Link>
         <Link href="/finanzen/wiederkehrende-ausgaben" className="neu-raised p-6 block transition-all hover:opacity-90">
           <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Repeat className="h-6 w-6" /></div>

@@ -9,7 +9,7 @@ export default async function ProjektkalkulationPage() {
 
   const [
     { data: { user } },
-    { data: paketeRaw },
+    { data: leistungenRaw },
     { data: equipmentRaw },
     { data: personasRaw },
     maRaw,
@@ -18,8 +18,8 @@ export default async function ProjektkalkulationPage() {
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase
-      .from('kalkulation_pakete')
-      .select('id, name, kalkulation_paket_positionen(id, bezeichnung, stunden, sort_order, persona_id)')
+      .from('kalkulation_leistungen')
+      .select('id, name, stundensatz')
       .order('created_at', { ascending: true }),
     supabase
       .from('equipment_items')
@@ -51,25 +51,10 @@ export default async function ProjektkalkulationPage() {
 
   const settings: MonatsabrechnungSettings = maRaw ?? DEFAULT_MONATSABRECHNUNG;
 
-  const pakete = (paketeRaw ?? []).map((p) => ({
-    id: p.id as string,
-    name: p.name as string,
-    positionen: (
-      (p.kalkulation_paket_positionen ?? []) as {
-        id: string;
-        bezeichnung: string;
-        stunden: number;
-        sort_order: number;
-        persona_id: string | null;
-      }[]
-    )
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((pos) => ({
-        id: pos.id,
-        bezeichnung: pos.bezeichnung,
-        stunden: Number(pos.stunden),
-        persona_id: pos.persona_id as string | null,
-      })),
+  const leistungen = (leistungenRaw ?? []).map((l) => ({
+    id: l.id as string,
+    name: l.name as string,
+    stundensatz: Number(l.stundensatz),
   }));
 
   const equipmentItems = (equipmentRaw ?? []).map((e) => ({
@@ -118,7 +103,7 @@ export default async function ProjektkalkulationPage() {
       </div>
 
       <ProjektKalkulator
-        pakete={pakete}
+        leistungen={leistungen}
         equipmentItems={equipmentItems}
         equipmentPakete={equipmentPakete}
         settings={settings}
