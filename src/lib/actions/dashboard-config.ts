@@ -81,6 +81,36 @@ export async function resizeWidget(widgetKey: string, colSpan: number) {
   return { error: null };
 }
 
+/** Wechselt ein Widget zur anderen Variante (gleiche Position, neuer key + col_span) */
+export async function switchWidgetVariant(oldKey: string, newKey: string, newColSpan: number) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Nicht angemeldet' };
+
+  // Aktuelle Position holen
+  const { data: current } = await supabase
+    .from('user_dashboard_config')
+    .select('position')
+    .eq('user_id', user.id)
+    .eq('widget_key', oldKey)
+    .single();
+
+  if (!current) return { error: 'Widget nicht gefunden' };
+
+  // Alten Eintrag löschen, neuen einfügen
+  await supabase.from('user_dashboard_config').delete().eq('user_id', user.id).eq('widget_key', oldKey);
+
+  const { error } = await supabase.from('user_dashboard_config').insert({
+    user_id: user.id,
+    widget_key: newKey,
+    col_span: newColSpan,
+    position: current.position,
+  });
+  if (error) return { error: error.message };
+  revalidate();
+  return { error: null };
+}
+
 export async function initDefaultWidgets(
   defaults: { widget_key: string; col_span: number; position: number }[]
 ) {

@@ -4,8 +4,8 @@ import { useState, useRef, useTransition, useEffect } from 'react';
 import { Settings2, Plus, X, GripVertical, Columns, Check } from 'lucide-react';
 import { WidgetContent, type WidgetData } from './widget-content';
 import { WidgetCatalog } from './widget-catalog';
-import { removeWidget, reorderWidgets, resizeWidget, initDefaultWidgets } from '@/lib/actions/dashboard-config';
-import { getWidget, type ColSpan } from '@/lib/widget-registry';
+import { removeWidget, reorderWidgets, switchWidgetVariant, initDefaultWidgets } from '@/lib/actions/dashboard-config';
+import { getWidget, getWidgetVariants } from '@/lib/widget-registry';
 
 export interface UserWidget {
   widget_key: string;
@@ -21,8 +21,7 @@ interface Props {
   canEdit: boolean;
 }
 
-const COL_OPTIONS: ColSpan[] = [1, 2, 4];
-const COL_LABELS: Record<ColSpan, string> = { 1: '1 Spalte', 2: '2 Spalten', 4: '4 Spalten' };
+const VARIANT_LABELS: Record<number, string> = { 1: 'Mini', 2: 'Normal', 3: 'Voll' };
 
 export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser, canEdit }: Props) {
   const [widgets, setWidgets] = useState<UserWidget[]>(initialWidgets);
@@ -106,11 +105,13 @@ export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser, 
     });
   }
 
-  // ── Resize ─────────────────────────────────────────
-  function handleResize(key: string, colSpan: ColSpan) {
-    setWidgets(prev => prev.map(w => w.widget_key === key ? { ...w, col_span: colSpan } : w));
+  // ── Variant switch ─────────────────────────────────
+  function handleSwitchVariant(currentKey: string, newKey: string, newColSpan: number) {
+    setWidgets(prev => prev.map(w =>
+      w.widget_key === currentKey ? { ...w, widget_key: newKey, col_span: newColSpan } : w
+    ));
     startTransition(async () => {
-      await resizeWidget(key, colSpan);
+      await switchWidgetVariant(currentKey, newKey, newColSpan);
     });
   }
 
@@ -120,6 +121,8 @@ export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser, 
     if (key === 'zeiterfassung_full') return '280px';
     if (key === 'zeiterfassung_compact') return '280px';
     if (key === 'zeiterfassung_mini') return '140px';
+    if (key === 'aufgaben_full') return '300px';
+    if (key === 'aufgaben_compact') return '240px';
     if (colSpan === 1) return '140px';
     if (colSpan === 2) return '180px';
     return '260px';
@@ -164,9 +167,10 @@ export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser, 
       >
         {widgets.map(w => {
           const meta = getWidget(w.widget_key);
+          const variants = getWidgetVariants(w.widget_key);
           const isDragging = dragging === w.widget_key;
           const isOver = dragOver === w.widget_key;
-          const colSpan = w.col_span as ColSpan;
+          const colSpan = w.col_span;
 
           return (
             <div
@@ -205,26 +209,25 @@ export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser, 
                     <X className="h-3 w-3" />
                   </button>
 
-                  {/* Resize buttons */}
-                  <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10">
-                    {COL_OPTIONS.filter(opt => {
-                      // Don't show options that don't make sense for this widget
-                      return true;
-                    }).map(opt => (
-                      <button
-                        key={opt}
-                        onClick={() => handleResize(w.widget_key, opt)}
-                        className="px-1.5 py-0.5 rounded text-[10px] font-medium transition-all"
-                        style={{
-                          background: colSpan === opt ? 'var(--neu-accent)' : 'var(--neu-surface)',
-                          color: colSpan === opt ? '#fff' : 'var(--neu-text-secondary)',
-                          border: `1px solid ${colSpan === opt ? 'transparent' : 'var(--neu-border)'}`,
-                        }}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
+                  {/* Variant buttons */}
+                  {variants.length > 1 && (
+                    <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10">
+                      {variants.map(v => (
+                        <button
+                          key={v.key}
+                          onClick={() => w.widget_key !== v.key && handleSwitchVariant(w.widget_key, v.key, v.defaultColSpan)}
+                          className="px-1.5 py-0.5 rounded text-[10px] font-medium transition-all"
+                          style={{
+                            background: w.widget_key === v.key ? 'var(--neu-accent)' : 'var(--neu-surface)',
+                            color: w.widget_key === v.key ? '#111112' : 'var(--neu-text-secondary)',
+                            border: `1px solid ${w.widget_key === v.key ? 'transparent' : 'var(--neu-border)'}`,
+                          }}
+                        >
+                          {VARIANT_LABELS[v.variantLevel]}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Widget label overlay */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

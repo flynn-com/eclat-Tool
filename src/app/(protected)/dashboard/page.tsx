@@ -21,21 +21,21 @@ export default async function DashboardPage() {
     { data: trackingData },
     { data: deductData },
     { data: activeProjects },
-    { count: meetingTasksCount },
-    { count: projectTasksCount },
     { data: widgetRows },
     { data: abrechnungen },
     { data: projectEntries },
     { data: allProfiles },
     { data: allTrackingData },
     { data: allDeductData },
+    { data: myMeetingTasks },
+    { data: myProjectTasks },
+    { data: myGeneralTaskAssignees },
+    { data: alleProfile },
   ] = await Promise.all([
     supabase.from('profiles').select('role, full_name').eq('id', user!.id).maybeSingle(),
     supabase.from('time_entries').select('duration_minutes').eq('user_id', user!.id).not('end_time', 'is', null),
     supabase.from('stunden_abrechnungen').select('stunden').eq('user_id', user!.id),
     supabase.from('projects').select('phase').eq('status', 'active'),
-    supabase.from('meeting_tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', user!.id).neq('status', 'erledigt'),
-    supabase.from('project_tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', user!.id).neq('status', 'erledigt'),
     supabase.from('user_dashboard_config').select('widget_key, position, col_span').eq('user_id', user!.id).order('position'),
     supabase.from('gewinnverteilungen').select('monat, einnahmen, ausgaben').not('monat', 'is', null).order('monat', { ascending: true }),
     // Project breakdown for current user
@@ -44,12 +44,20 @@ export default async function DashboardPage() {
       .eq('user_id', user!.id)
       .not('end_time', 'is', null)
       .not('project_id', 'is', null),
-    // All team profiles (for full widget)
+    // All team profiles except self (for Zeiterfassung team widget)
     supabase.from('profiles').select('id, full_name').neq('id', user!.id),
     // All tracking data for other team members
     supabase.from('time_entries').select('user_id, duration_minutes').not('end_time', 'is', null).neq('user_id', user!.id),
     // All deductions for other team members
     supabase.from('stunden_abrechnungen').select('user_id, stunden').neq('user_id', user!.id),
+    // Aufgaben: meeting tasks for current user
+    supabase.from('meeting_tasks').select('id, title, status, meetings(name)').eq('assignee_id', user!.id).neq('status', 'erledigt').limit(20),
+    // Aufgaben: project tasks for current user
+    supabase.from('project_tasks').select('id, title, status, projects(name)').eq('assignee_id', user!.id).neq('status', 'erledigt').limit(20),
+    // Aufgaben: general tasks where user is assignee
+    supabase.from('task_assignees').select('task_id, tasks(id, title, status)').eq('user_id', user!.id).limit(20),
+    // All profiles incl. current user (für Aufgaben-Assignee-Picker)
+    supabase.from('profiles').select('id, full_name'),
   ]);
 
   const isAdmin = profile?.role === 'admin';
@@ -104,12 +112,43 @@ export default async function DashboardPage() {
   const gesamtEinnahmen = Object.values(byMonth).reduce((s, d) => s + d.einnahmen, 0);
   const gesamtAusgaben = Object.values(byMonth).reduce((s, d) => s + d.ausgaben, 0);
 
+  // Aufgaben zusammenführen
+  type AufgabeItem = { id: string; title: string; status: string; source: string; type: 'meeting' | 'project' | 'general' };
+  const meineAufgaben: AufgabeItem[] = [
+    ...(myMeetingTasks ?? []).map(t => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      source: (t as any).meetings?.name ?? 'Meeting',
+      type: 'meeting' as const,
+    })),
+    ...(myProjectTasks ?? []).map(t => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      source: (t as any).projects?.name ?? 'Projekt',
+      type: 'project' as const,
+    })),
+    ...(myGeneralTaskAssignees ?? [])
+      .map(r => (r as any).tasks)
+      .filter((t: any) => t && t.status !== 'erledigt')
+      .map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        source: 'Allgemein',
+        type: 'general' as const,
+      })),
+  ];
+
   const widgetData: WidgetData = {
     verfuegbarMinutes,
     totalMinutes,
     userProjectBreakdown,
     teamMemberHours,
-    offeneAufgaben: (meetingTasksCount ?? 0) + (projectTasksCount ?? 0),
+    offeneAufgaben: meineAufgaben.length,
+    meineAufgaben,
+    alleProfile: (alleProfile ?? []).map(p => ({ id: p.id, name: p.full_name ?? '?' })),
     projektCount: activeProjects?.length ?? 0,
     chartData,
     gesamtEinnahmen,
