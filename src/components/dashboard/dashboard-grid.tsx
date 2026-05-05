@@ -18,12 +18,13 @@ interface Props {
   widgetData: WidgetData;
   isAdmin: boolean;
   isNewUser: boolean;
+  canEdit: boolean;
 }
 
 const COL_OPTIONS: ColSpan[] = [1, 2, 4];
 const COL_LABELS: Record<ColSpan, string> = { 1: '1 Spalte', 2: '2 Spalten', 4: '4 Spalten' };
 
-export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser }: Props) {
+export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser, canEdit }: Props) {
   const [widgets, setWidgets] = useState<UserWidget[]>(initialWidgets);
   const [editMode, setEditMode] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
@@ -126,33 +127,35 @@ export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser }
 
   return (
     <>
-      {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
-          {editMode ? 'Widgets per Drag & Drop verschieben, Größe ändern oder entfernen' : ''}
-        </p>
-        <div className="flex items-center gap-2">
-          {editMode && (
+      {/* Toolbar — nur für Admins */}
+      {canEdit && (
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+            {editMode ? 'Widgets per Drag & Drop verschieben, Größe ändern oder entfernen' : ''}
+          </p>
+          <div className="flex items-center gap-2">
+            {editMode && (
+              <button
+                onClick={() => setShowCatalog(true)}
+                className="neu-btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs"
+              >
+                <Plus className="h-3.5 w-3.5" /> Widget hinzufügen
+              </button>
+            )}
             <button
-              onClick={() => setShowCatalog(true)}
-              className="neu-btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs"
+              onClick={() => setEditMode(!editMode)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                background: editMode ? 'rgba(16,185,129,0.12)' : 'var(--neu-surface)',
+                border: `1px solid ${editMode ? 'rgba(16,185,129,0.3)' : 'var(--neu-border)'}`,
+                color: editMode ? '#10b981' : 'var(--neu-text-secondary)',
+              }}
             >
-              <Plus className="h-3.5 w-3.5" /> Widget hinzufügen
+              {editMode ? <><Check className="h-3.5 w-3.5" /> Fertig</> : <><Settings2 className="h-3.5 w-3.5" /> Dashboard bearbeiten</>}
             </button>
-          )}
-          <button
-            onClick={() => setEditMode(!editMode)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-            style={{
-              background: editMode ? 'rgba(16,185,129,0.12)' : 'var(--neu-surface)',
-              border: `1px solid ${editMode ? 'rgba(16,185,129,0.3)' : 'var(--neu-border)'}`,
-              color: editMode ? '#10b981' : 'var(--neu-text-secondary)',
-            }}
-          >
-            {editMode ? <><Check className="h-3.5 w-3.5" /> Fertig</> : <><Settings2 className="h-3.5 w-3.5" /> Dashboard bearbeiten</>}
-          </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Grid */}
       <div
@@ -168,11 +171,11 @@ export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser }
           return (
             <div
               key={w.widget_key}
-              draggable={editMode}
-              onDragStart={() => onDragStart(w.widget_key)}
-              onDragOver={e => onDragOver(e, w.widget_key)}
-              onDrop={onDrop}
-              onDragEnd={onDragEnd}
+              draggable={canEdit && editMode}
+              onDragStart={() => canEdit && onDragStart(w.widget_key)}
+              onDragOver={e => canEdit && onDragOver(e, w.widget_key)}
+              onDrop={e => canEdit && onDrop(e)}
+              onDragEnd={() => canEdit && onDragEnd()}
               className="neu-raised relative transition-all duration-150"
               style={{
                 gridColumn: `span ${colSpan}`,
@@ -185,7 +188,7 @@ export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser }
               }}
             >
               {/* Edit-Mode overlay controls */}
-              {editMode && (
+              {canEdit && editMode && (
                 <>
                   {/* Drag handle */}
                   <div className="absolute top-2 left-2 opacity-40" style={{ color: 'var(--neu-accent-mid)', pointerEvents: 'none' }}>
