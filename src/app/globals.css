@@ -182,3 +182,31 @@ select {
 .mobile-nav-scroll::-webkit-scrollbar {
   display: none;
 }
+
+/* ── Dashboard Widget Grid ────────────────────────────────────── */
+
+/* On tablet (< 1024px): 2-column grid, widgets with span 4 → full width */
+@media (max-width: 1023px) {
+  .widget-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .widget-grid > [style*="span 4"] {
+    grid-column: span 2 !important;
+  }
+  .widget-grid > [style*="span 1"] {
+    grid-column: span 1 !important;
+  }
+  .widget-grid > [style*="span 2"] {
+    grid-column: span 2 !important;
+  }
+}
+
+/* On mobile (< 640px): 1-column grid, all widgets full width */
+@media (max-width: 639px) {
+  .widget-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .widget-grid > * {
+    grid-column: span 1 !important;
+  }
+}
