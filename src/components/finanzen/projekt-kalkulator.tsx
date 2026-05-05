@@ -73,6 +73,29 @@ function eur(v: number) {
   return v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 }
 
+function StundenQuickset({ onSet }: { onSet: (v: string) => void }) {
+  return (
+    <div className="flex gap-1">
+      <button
+        type="button"
+        onClick={() => onSet('4')}
+        className="px-1.5 py-0.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-70"
+        style={{ background: 'var(--neu-accent)22', color: 'var(--neu-accent)', border: '1px solid var(--neu-accent)44' }}
+      >
+        ½T
+      </button>
+      <button
+        type="button"
+        onClick={() => onSet('8')}
+        className="px-1.5 py-0.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-70"
+        style={{ background: 'var(--neu-accent)22', color: 'var(--neu-accent)', border: '1px solid var(--neu-accent)44' }}
+      >
+        1T
+      </button>
+    </div>
+  );
+}
+
 function PersonaBadge({ persona }: { persona: Persona | undefined }) {
   if (!persona) return null;
   const color = 'var(--neu-accent)';
@@ -500,6 +523,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings, personas }
                         value={pos.stunden}
                         onChange={(e) => updatePaketPosition(sp.instanceId, pos.id, 'stunden', e.target.value)}
                       />
+                      <StundenQuickset onSet={(v) => updatePaketPosition(sp.instanceId, pos.id, 'stunden', v)} />
                       <span className="text-xs w-6" style={{ color: 'var(--neu-text-secondary)' }}>Std</span>
                       <select
                         className="neu-input text-sm"
@@ -565,6 +589,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings, personas }
                       value={pos.stunden}
                       onChange={(e) => updateEigenePosition(pos.id, 'stunden', e.target.value)}
                     />
+                    <StundenQuickset onSet={(v) => updateEigenePosition(pos.id, 'stunden', v)} />
                     <span className="text-xs w-6" style={{ color: 'var(--neu-text-secondary)' }}>Std</span>
                     <select
                       className="neu-input text-sm"
@@ -664,7 +689,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings, personas }
                   <span className="text-xs flex-1" style={{ color: 'var(--neu-text-secondary)' }}>
                     {persona.stundensatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Std
                   </span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <input
                       className="neu-input text-sm w-20"
                       type="number"
@@ -673,6 +698,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings, personas }
                       value={pd.stunden}
                       onChange={(e) => updatePersonaDirectStunden(pd.id, e.target.value)}
                     />
+                    <StundenQuickset onSet={(v) => updatePersonaDirectStunden(pd.id, v)} />
                     <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Std</span>
                   </div>
                   <span className="text-sm font-medium w-24 text-right" style={{ color: 'var(--neu-text)' }}>
