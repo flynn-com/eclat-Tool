@@ -35,7 +35,7 @@ interface EquipmentPaketItem {
   equipment_item_id: string;
   name: string;
   day_rate: number | null;
-  tage: number;
+  quantity: number;
 }
 
 interface EquipmentPaket {
@@ -350,7 +350,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, equipmentPakete, set
       id: `eq-${Date.now()}-${item.equipment_item_id}`,
       name: item.name,
       tagessatz: item.day_rate !== null ? String(item.day_rate) : '',
-      tage: String(item.tage),
+      tage: String(item.quantity ?? 1),
     }));
     setEquipment((prev) => [...prev, ...rows]);
     setShowEquipmentPicker(false);
