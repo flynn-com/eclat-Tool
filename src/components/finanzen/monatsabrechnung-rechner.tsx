@@ -186,8 +186,9 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
   const einnahmenZahl = einnahmePositionen.reduce((s, p) => s + parse(p.betrag), 0);
   const ausgabenZahl = ausgabePositionen.reduce((s, p) => s + parse(p.betrag), 0);
   const gesamtSumme = einnahmenZahl - ausgabenZahl;
-  const steuerruecklage = gesamtSumme * (settings.steuerProzent / 100);
-  const investruecklage = gesamtSumme * (settings.investProzent / 100);
+  const verteilbareBase = Math.max(gesamtSumme, 0);
+  const steuerruecklage = verteilbareBase * (settings.steuerProzent / 100);
+  const investruecklage = verteilbareBase * (settings.investProzent / 100);
   const restProzent = 100 - settings.steuerProzent - settings.investProzent;
   const abrechnungsgrundlage = Math.max(gesamtSumme - steuerruecklage - investruecklage - boniSummeGesamt, 0);
   const anteileTopf = abrechnungsgrundlage * (settings.anteileProzent / 100);
@@ -199,11 +200,25 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
     setErgebnis(null);
     setGespeichert(false);
 
-    if (einnahmenZahl <= 0) { setFehler('Bitte Einnahmen eingeben.'); return; }
-    if (gesamtSumme <= 0) { setFehler('Einnahmen muessen groesser als Ausgaben sein.'); return; }
-
     const teilnehmer = personen.filter((p) => p.gesamtStunden > 0);
-    if (teilnehmer.length === 0) { setFehler('Kein Mitarbeiter hat Stunden auf dem Konto.'); return; }
+
+    // Wenn keine Stunden oder keine verteilbare Summe: leere Abrechnung (nur Kostenerfassung)
+    if (teilnehmer.length === 0 || abrechnungsgrundlage <= 0) {
+      setErgebnis({
+        personen: [],
+        gesamtSumme,
+        steuerruecklage,
+        investruecklage,
+        boniSumme: boniSummeGesamt,
+        abrechnungsgrundlage,
+        anteileTopf: 0,
+        stundenTopf: 0,
+        maxStunden: 0,
+        gesamtAuszahlung: 0,
+        restStundenBudget: 0,
+      });
+      return;
+    }
 
     const totalStunden = teilnehmer.reduce((s, p) => s + p.gesamtStunden, 0);
     const anteilProPerson = anteileTopf / teilnehmer.length;
