@@ -133,6 +133,14 @@ export async function toggleAgendaItem(itemId: string, isChecked: boolean, meeti
   return { error: null };
 }
 
+export async function updateAgendaItem(itemId: string, title: string, meetingId?: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('meeting_agenda').update({ title: title.trim() }).eq('id', itemId);
+  if (error) return { error: error.message };
+  revalidate(meetingId);
+  return { error: null };
+}
+
 export async function deleteAgendaItem(itemId: string, meetingId?: string) {
   const supabase = await createClient();
   const { error } = await supabase.from('meeting_agenda').delete().eq('id', itemId);
