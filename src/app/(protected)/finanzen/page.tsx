@@ -3,6 +3,7 @@ import { Calculator, Archive, Clock, TrendingUp, TrendingDown, Minus } from 'luc
 import { createClient } from '@/lib/supabase/server';
 import { FinanzChart } from '@/components/finanzen/finanz-chart';
 import { WidgetPinButton } from '@/components/dashboard/widget-pin-button';
+import { RecurringExpensesManager } from '@/components/finanzen/recurring-expenses-manager';
 
 const MONAT_LABELS: Record<string, string> = {
   '01': 'Jan', '02': 'Feb', '03': 'Mär', '04': 'Apr',
@@ -24,7 +25,7 @@ export default async function FinanzenPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [{ data: abrechnungen }, { data: widgetRows }] = await Promise.all([
+  const [{ data: abrechnungen }, { data: widgetRows }, { data: recurringExpenses }] = await Promise.all([
     supabase
       .from('gewinnverteilungen')
       .select('monat, einnahmen, ausgaben, gesamtgewinn')
@@ -34,6 +35,7 @@ export default async function FinanzenPage() {
       .from('user_widgets')
       .select('widget_id')
       .eq('user_id', user!.id),
+    supabase.from('recurring_expenses').select('id, name, betrag, kategorie, aktiv').order('created_at'),
   ]);
 
   // Aggregate by month (sum if multiple entries per month)
@@ -103,6 +105,19 @@ export default async function FinanzenPage() {
           <WidgetPinButton widgetId="finanz_chart" isPinned={isChartPinned} />
         </div>
         <FinanzChart data={chartData} />
+      </div>
+
+      {/* Wiederkehrende Ausgaben */}
+      <div className="mb-6">
+        <RecurringExpensesManager
+          initialExpenses={(recurringExpenses ?? []).map(e => ({
+            id: e.id,
+            name: e.name,
+            betrag: Number(e.betrag),
+            kategorie: e.kategorie,
+            aktiv: e.aktiv,
+          }))}
+        />
       </div>
 
       {/* Navigation */}

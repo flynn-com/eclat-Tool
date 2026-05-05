@@ -5,13 +5,14 @@ import { ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ProjectSelect } from './project-select';
-import { Project } from '@/lib/types';
+import { Project, TimeCategory } from '@/lib/types';
 
 interface ManualEntryFormProps {
   projects: Project[];
+  categories?: TimeCategory[];
 }
 
-export function ManualEntryForm({ projects }: ManualEntryFormProps) {
+export function ManualEntryForm({ projects, categories = [] }: ManualEntryFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,10 @@ export function ManualEntryForm({ projects }: ManualEntryFormProps) {
       const date = formData.get('date') as string;
       const startTimeStr = formData.get('start_time') as string;
       const endTimeStr = formData.get('end_time') as string;
-      const projectId = (formData.get('project_id') as string) || null;
+      const raw = (formData.get('project_id') as string) || '';
+      const isCategory = raw.startsWith('cat_');
+      const projectId = !isCategory && raw.trim() !== '' ? raw : null;
+      const categoryId = isCategory ? raw.replace('cat_', '') : null;
       const description = (formData.get('description') as string) || null;
 
       if (!date || !startTimeStr || !endTimeStr) {
@@ -66,7 +70,8 @@ export function ManualEntryForm({ projects }: ManualEntryFormProps) {
 
       const { error: insertError } = await supabase.from('time_entries').insert({
         user_id: user.id,
-        project_id: projectId && projectId.trim() !== '' ? projectId : null,
+        project_id: projectId,
+        category_id: categoryId,
         description: description && description.trim() !== '' ? description : null,
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
@@ -136,8 +141,8 @@ export function ManualEntryForm({ projects }: ManualEntryFormProps) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Projekt</label>
-              <ProjectSelect projects={projects} />
+              <label className="block text-xs font-medium text-gray-500 mb-1">Projekt / Kategorie</label>
+              <ProjectSelect projects={projects} categories={categories} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Beschreibung</label>

@@ -76,11 +76,11 @@ function buildUserSummaries(entries: TimeEntryWithRelations[]): UserSummary[] {
     user.entries.push(entry);
     if (entry.duration_minutes) user.totalMinutes += entry.duration_minutes;
 
-    const key = entry.project_id ?? '__none__';
+    const key = entry.project_id ?? (entry.category_id ? `cat_${entry.category_id}` : '__none__');
     if (!projectMap.has(key)) {
       projectMap.set(key, {
-        name: entry.projects?.name ?? 'Sonstiges',
-        color: entry.projects?.color ?? '#9CA3AF',
+        name: entry.projects?.name ?? entry.time_categories?.name ?? 'Sonstiges',
+        color: entry.projects?.color ?? entry.time_categories?.color ?? '#9CA3AF',
         minutes: 0,
       });
     }

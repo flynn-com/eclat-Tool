@@ -38,12 +38,11 @@ export default async function DashboardPage() {
     supabase.from('projects').select('phase').eq('status', 'active'),
     supabase.from('user_dashboard_config').select('widget_key, position, col_span').eq('user_id', user!.id).order('position'),
     supabase.from('gewinnverteilungen').select('monat, einnahmen, ausgaben').not('monat', 'is', null).order('monat', { ascending: true }),
-    // Project breakdown for current user
+    // Project/category breakdown for current user
     supabase.from('time_entries')
-      .select('duration_minutes, projects(name, color)')
+      .select('duration_minutes, project_id, category_id, projects(name, color), time_categories(name, color)')
       .eq('user_id', user!.id)
-      .not('end_time', 'is', null)
-      .not('project_id', 'is', null),
+      .not('end_time', 'is', null),
     // All team profiles except self (for Zeiterfassung team widget)
     supabase.from('profiles').select('id, full_name').neq('id', user!.id),
     // All tracking data for other team members
@@ -69,13 +68,15 @@ export default async function DashboardPage() {
   const deductedMinutes = (deductData ?? []).reduce((s, e) => s + Number(e.stunden) * 60, 0);
   const verfuegbarMinutes = Math.max(Math.round(totalMinutes - deductedMinutes), 0);
 
-  // Project breakdown — aggregate by project name
+  // Project + category breakdown — aggregate by name
   const projectMap: Record<string, { name: string; color: string; minutes: number }> = {};
   for (const entry of (projectEntries ?? [])) {
     const proj = (entry as any).projects;
-    if (!proj) continue;
-    const key = proj.name as string;
-    if (!projectMap[key]) projectMap[key] = { name: proj.name, color: proj.color ?? '#10b981', minutes: 0 };
+    const cat = (entry as any).time_categories;
+    const source = proj ?? cat;
+    if (!source) continue;
+    const key = source.name as string;
+    if (!projectMap[key]) projectMap[key] = { name: source.name, color: source.color ?? '#10b981', minutes: 0 };
     projectMap[key].minutes += entry.duration_minutes ?? 0;
   }
   const userProjectBreakdown = Object.values(projectMap).sort((a, b) => b.minutes - a.minutes);

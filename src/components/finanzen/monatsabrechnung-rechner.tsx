@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calculator, Check, Download, Plus, Trash2, RotateCcw } from 'lucide-react';
+import { Calculator, Check, Download, Plus, Trash2, RotateCcw, Repeat } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
@@ -32,12 +32,20 @@ interface BonusEintrag {
   bonus: number;
 }
 
+interface WiederkehrendeAusgabe {
+  id: string;
+  name: string;
+  betrag: number;
+  kategorie: string | null;
+}
+
 interface MonatsabrechnungRechnerProps {
   settings: MonatsabrechnungSettings;
   staffeln: Staffel[];
   personen: PersonDaten[];
-  abrechnungsMonat: string;        // z.B. "2026-03"
-  abrechnungsMonatLabel: string;   // z.B. "Maerz 2026"
+  abrechnungsMonat: string;
+  abrechnungsMonatLabel: string;
+  wiederkehrendeAusgaben?: WiederkehrendeAusgabe[];
 }
 
 interface PersonErgebnis {
@@ -68,7 +76,7 @@ function berechneStaffelBonus(umsatz: number, staffeln: Staffel[]): number {
   return bonus;
 }
 
-export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnungsMonat, abrechnungsMonatLabel }: MonatsabrechnungRechnerProps) {
+export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnungsMonat, abrechnungsMonatLabel, wiederkehrendeAusgaben = [] }: MonatsabrechnungRechnerProps) {
   const [einnahmePositionen, setEinnahmePositionen] = useState<EinnahmePosition[]>([{ projekt: '', betrag: '' }]);
   const [ausgabePositionen, setAusgabePositionen] = useState<AusgabePosition[]>([{ beschreibung: '', betrag: '' }]);
   const [boni, setBoni] = useState<BonusEintrag[]>([]);
@@ -184,7 +192,8 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
   // Live calculation values
   const parse = (s: string) => parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
   const einnahmenZahl = einnahmePositionen.reduce((s, p) => s + parse(p.betrag), 0);
-  const ausgabenZahl = ausgabePositionen.reduce((s, p) => s + parse(p.betrag), 0);
+  const wiederkehrendSumme = wiederkehrendeAusgaben.reduce((s, a) => s + a.betrag, 0);
+  const ausgabenZahl = ausgabePositionen.reduce((s, p) => s + parse(p.betrag), 0) + wiederkehrendSumme;
   const gesamtSumme = einnahmenZahl - ausgabenZahl;
   const verteilbareBase = Math.max(gesamtSumme, 0);
   const steuerruecklage = verteilbareBase * (settings.steuerProzent / 100);
@@ -474,7 +483,42 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
       {/* 3. Ausgaben */}
       <div className="neu-raised p-5">
         <h3 className="text-base font-bold mb-3" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>Ausgaben</h3>
-        <p className="text-xs mb-3" style={{ color: 'var(--neu-text-secondary)' }}>Alle Ausgaben dieses Monats einzeln auflisten (netto)</p>
+
+        {/* Wiederkehrende Ausgaben (gesperrt, aus Finanzen-Tab) */}
+        {wiederkehrendeAusgaben.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Repeat className="h-3 w-3" style={{ color: 'var(--neu-accent-mid)' }} />
+              <span className="text-xs font-medium" style={{ color: 'var(--neu-text-secondary)' }}>
+                Wiederkehrend (automatisch)
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {wiederkehrendeAusgaben.map(a => (
+                <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                  style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                  <span className="flex-1 text-sm" style={{ color: 'var(--neu-text)' }}>{a.name}</span>
+                  {a.kategorie && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--neu-surface)', color: 'var(--neu-text-secondary)' }}>
+                      {a.kategorie}
+                    </span>
+                  )}
+                  <span className="text-sm font-semibold w-28 text-right" style={{ color: '#ef4444' }}>
+                    {formatEuro(a.betrag)}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between px-3 py-1 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                <span>Wiederkehrend gesamt</span>
+                <span className="font-semibold" style={{ color: '#ef4444' }}>{formatEuro(wiederkehrendSumme)}</span>
+              </div>
+            </div>
+            <div className="my-3 border-t" style={{ borderColor: 'var(--neu-border)' }} />
+          </div>
+        )}
+
+        {/* Manuelle Ausgaben */}
+        <p className="text-xs mb-3" style={{ color: 'var(--neu-text-secondary)' }}>Weitere Ausgaben dieses Monats (netto)</p>
         <div className="space-y-2 mb-3">
           {ausgabePositionen.map((pos, i) => (
             <div key={i} className="flex items-center gap-2">

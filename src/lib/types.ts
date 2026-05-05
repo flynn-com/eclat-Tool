@@ -187,10 +187,18 @@ export interface ProjectScheduleEntry {
   updated_at: string;
 }
 
+export interface TimeCategory {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
 export interface TimeEntry {
   id: string;
   user_id: string;
   project_id: string | null;
+  category_id: string | null;
   description: string | null;
   start_time: string;
   end_time: string | null;
@@ -203,6 +211,7 @@ export interface TimeEntry {
 export interface TimeEntryWithRelations extends TimeEntry {
   profiles: Pick<Profile, 'full_name' | 'avatar_url'>;
   projects: Pick<Project, 'name' | 'color'> | null;
+  time_categories: Pick<TimeCategory, 'name' | 'color'> | null;
 }
 
 export interface Meeting {

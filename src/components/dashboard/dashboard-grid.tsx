@@ -116,16 +116,12 @@ export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser, 
   }
 
   // ── Render ─────────────────────────────────────────
-  const heightForColSpan = (colSpan: number, key: string): string => {
-    if (key === 'finanzen_chart') return '300px';
-    if (key === 'zeiterfassung_full') return '280px';
-    if (key === 'zeiterfassung_compact') return '280px';
-    if (key === 'zeiterfassung_mini') return '140px';
-    if (key === 'aufgaben_full') return '300px';
-    if (key === 'aufgaben_compact') return '240px';
-    if (colSpan === 1) return '140px';
-    if (colSpan === 2) return '180px';
-    return '260px';
+  // Drei Standardhöhen nach Variantenlevel — einheitlich für alle Widgets
+  const VARIANT_HEIGHTS: Record<number, string> = { 1: '140px', 2: '240px', 3: '320px' };
+
+  const heightForKey = (key: string): string => {
+    const meta = getWidget(key);
+    return VARIANT_HEIGHTS[meta?.variantLevel ?? 2];
   };
 
   return (
@@ -183,7 +179,7 @@ export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser, 
               className="neu-raised relative transition-all duration-150"
               style={{
                 gridColumn: `span ${colSpan}`,
-                height: heightForColSpan(colSpan, w.widget_key),
+                height: heightForKey(w.widget_key),
                 opacity: isDragging ? 0.4 : 1,
                 outline: isOver && editMode ? '2px dashed var(--neu-accent)' : 'none',
                 outlineOffset: '2px',

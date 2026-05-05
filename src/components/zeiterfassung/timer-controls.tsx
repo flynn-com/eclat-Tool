@@ -5,14 +5,15 @@ import { Play } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ProjectSelect } from './project-select';
-import { Project } from '@/lib/types';
+import { Project, TimeCategory } from '@/lib/types';
 
 interface TimerControlsProps {
   projects: Project[];
+  categories?: TimeCategory[];
   hasActiveTimer: boolean;
 }
 
-export function TimerControls({ projects, hasActiveTimer }: TimerControlsProps) {
+export function TimerControls({ projects, categories = [], hasActiveTimer }: TimerControlsProps) {
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -27,7 +28,10 @@ export function TimerControls({ projects, hasActiveTimer }: TimerControlsProps) 
 
     try {
       const formData = new FormData(e.currentTarget);
-      const projectId = (formData.get('project_id') as string) || null;
+      const raw = (formData.get('project_id') as string) || '';
+      const isCategory = raw.startsWith('cat_');
+      const projectId = !isCategory && raw.trim() !== '' ? raw : null;
+      const categoryId = isCategory ? raw.replace('cat_', '') : null;
       const description = (formData.get('description') as string) || null;
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -39,7 +43,8 @@ export function TimerControls({ projects, hasActiveTimer }: TimerControlsProps) 
 
       const { error: insertError } = await supabase.from('time_entries').insert({
         user_id: user.id,
-        project_id: projectId && projectId.trim() !== '' ? projectId : null,
+        project_id: projectId,
+        category_id: categoryId,
         description: description && description.trim() !== '' ? description : null,
         start_time: new Date().toISOString(),
         is_manual: false,
@@ -66,7 +71,7 @@ export function TimerControls({ projects, hasActiveTimer }: TimerControlsProps) 
       <h3 className="text-sm font-medium text-gray-700 mb-3">Timer starten</h3>
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1">
-          <ProjectSelect projects={projects} />
+          <ProjectSelect projects={projects} categories={categories} />
         </div>
         <div className="flex-1">
           <input

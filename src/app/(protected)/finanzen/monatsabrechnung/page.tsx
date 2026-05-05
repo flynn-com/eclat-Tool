@@ -42,15 +42,17 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
   const settings: MonatsabrechnungSettings = maRaw ?? DEFAULT_MONATSABRECHNUNG;
   const staffeln: Staffel[] = staffelnRaw ?? DEFAULT_STAFFELN;
 
-  // All data in parallel — 3 queries total
+  // All data in parallel
   const [
     { data: profiles },
     { data: alleTimeEntries },
     { data: alleAbrechnungen },
+    { data: recurringExpenses },
   ] = await Promise.all([
     supabase.from('profiles').select('id, full_name').order('full_name'),
     supabase.from('time_entries').select('user_id, duration_minutes, start_time').not('end_time', 'is', null),
     supabase.from('stunden_abrechnungen').select('user_id, stunden'),
+    supabase.from('recurring_expenses').select('id, name, betrag, kategorie, aktiv').eq('aktiv', true).order('created_at'),
   ]);
 
   // Build HashMaps for O(1) lookup instead of O(n) filter
@@ -112,6 +114,12 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
         personen={personenDaten}
         abrechnungsMonat={gewaehlterMonat}
         abrechnungsMonatLabel={monatLabel}
+        wiederkehrendeAusgaben={(recurringExpenses ?? []).map(e => ({
+          id: e.id,
+          name: e.name,
+          betrag: Number(e.betrag),
+          kategorie: e.kategorie,
+        }))}
       />
     </div>
   );

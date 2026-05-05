@@ -1,15 +1,22 @@
 import Link from 'next/link';
-import { Calendar, Trash2 } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { CreateMeetingButton } from '@/components/meetings/create-meeting-button';
+import { WeeklyMeetingTimer } from '@/components/meetings/weekly-meeting-timer';
 
 export default async function MeetingsPage() {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: meetings } = await supabase
-    .from('meetings')
-    .select('id, name, date, created_at, profiles:created_by(full_name)')
-    .order('date', { ascending: false });
+  const [
+    { data: meetings },
+    { data: weeklyCategory },
+    { data: activeEntry },
+  ] = await Promise.all([
+    supabase.from('meetings').select('id, name, date, created_at, profiles:created_by(full_name)').order('date', { ascending: false }),
+    supabase.from('time_categories').select('id').eq('name', 'Weekly Meeting').maybeSingle(),
+    supabase.from('time_entries').select('id, start_time, category_id').eq('user_id', user!.id).is('end_time', null).maybeSingle(),
+  ]);
 
   return (
     <div>
@@ -18,7 +25,16 @@ export default async function MeetingsPage() {
           <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>Meetings</h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Live-Notizen & Aufgaben</p>
         </div>
-        <CreateMeetingButton />
+        <div className="flex items-center gap-2">
+          {weeklyCategory && (
+            <WeeklyMeetingTimer
+              categoryId={weeklyCategory.id}
+              activeEntryId={activeEntry?.category_id === weeklyCategory.id ? (activeEntry?.id ?? null) : null}
+              activeStartTime={activeEntry?.category_id === weeklyCategory.id ? (activeEntry?.start_time ?? null) : null}
+            />
+          )}
+          <CreateMeetingButton />
+        </div>
       </div>
 
       {(!meetings || meetings.length === 0) ? (

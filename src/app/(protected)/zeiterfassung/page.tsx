@@ -39,14 +39,16 @@ export default async function ZeiterfassungPage({ searchParams }: { searchParams
   const [
     { data: activeEntry },
     { data: projects },
+    { data: categories },
     { data: entries },
     { data: profiles },
     { data: alleEntries },
     { data: alleAbrechnungen },
   ] = await Promise.all([
-    supabase.from('time_entries').select('*, projects(name, color)').eq('user_id', user!.id).is('end_time', null).maybeSingle(),
+    supabase.from('time_entries').select('*, projects(name, color), time_categories(name, color)').eq('user_id', user!.id).is('end_time', null).maybeSingle(),
     supabase.from('projects').select('*').eq('status', 'active').order('name'),
-    supabase.from('time_entries').select('*, profiles(full_name, avatar_url), projects(name, color)').gte('start_time', startOfMonth).lte('start_time', endOfMonth).order('start_time', { ascending: false }),
+    supabase.from('time_categories').select('*').order('name'),
+    supabase.from('time_entries').select('*, profiles(full_name, avatar_url), projects(name, color), time_categories(name, color)').gte('start_time', startOfMonth).lte('start_time', endOfMonth).order('start_time', { ascending: false }),
     supabase.from('profiles').select('id, full_name').order('full_name'),
     supabase.from('time_entries').select('user_id, duration_minutes').not('end_time', 'is', null),
     supabase.from('stunden_abrechnungen').select('user_id, stunden'),
@@ -91,9 +93,9 @@ export default async function ZeiterfassungPage({ searchParams }: { searchParams
           {activeEntry ? (
             <ActiveTimer entry={activeEntry} project={activeEntry.projects} />
           ) : (
-            <TimerControls projects={projects ?? []} hasActiveTimer={false} />
+            <TimerControls projects={projects ?? []} categories={categories ?? []} hasActiveTimer={false} />
           )}
-          <ManualEntryForm projects={projects ?? []} />
+          <ManualEntryForm projects={projects ?? []} categories={categories ?? []} />
         </>
       )}
 
