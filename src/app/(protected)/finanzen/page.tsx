@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Calculator, Archive, Clock, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Calculator, Archive, Clock, TrendingUp, TrendingDown, Minus, FileText, Package } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { FinanzChart } from '@/components/finanzen/finanz-chart';
 import { WidgetPinButton } from '@/components/dashboard/widget-pin-button';
@@ -136,6 +136,16 @@ export default async function FinanzenPage() {
           <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Clock className="h-6 w-6" /></div>
           <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Zeiterfassung</h3>
           <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Arbeitszeiten erfassen und auswerten</p>
+        </Link>
+        <Link href="/finanzen/projektkalkulation" className="neu-raised p-6 block transition-all hover:opacity-90">
+          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><FileText className="h-6 w-6" /></div>
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Projektkalkulation</h3>
+          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Was kostet ein Projekt?</p>
+        </Link>
+        <Link href="/finanzen/pakete" className="neu-raised p-6 block transition-all hover:opacity-90">
+          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Package className="h-6 w-6" /></div>
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Leistungspakete</h3>
+          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Pakete für Kalkulationen verwalten</p>
         </Link>
       </div>
     </div>
