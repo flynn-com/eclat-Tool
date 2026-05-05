@@ -77,78 +77,47 @@ export function WidgetContent({ widgetKey, data }: { widgetKey: string; data: Wi
   switch (widgetKey) {
 
     // ── Zeiterfassung ──────────────────────────────────
+
+    // Mini: nur eigene Stundenzahl, keine Balken
     case 'zeiterfassung_mini': {
+      const h = Math.floor((data.verfuegbarMinutes ?? 0) / 60);
+      const m = (data.verfuegbarMinutes ?? 0) % 60;
       return (
         <a href="/zeiterfassung" className="flex flex-col justify-between h-full">
-          <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
-          <p className="text-4xl font-bold leading-tight" style={{ color: 'var(--neu-text)' }}>
-            {fmt(data.verfuegbarMinutes ?? 0)}
-          </p>
-          <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
+          <p className="text-xs font-medium" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
+          <div>
+            <p className="text-5xl font-bold leading-none" style={{ color: 'var(--neu-text)' }}>{h}</p>
+            <p className="text-lg font-medium mt-1" style={{ color: 'var(--neu-text-secondary)' }}>
+              Std {m.toString().padStart(2, '0')} Min
+            </p>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden gesamt</p>
         </a>
       );
     }
 
+    // Compact: eigene Stunden + Projektaufschlüsselung
     case 'zeiterfassung_compact': {
       const projects = data.userProjectBreakdown ?? [];
       const maxMin = Math.max(...projects.map(p => p.minutes), 1);
       return (
         <a href="/zeiterfassung" className="flex flex-col h-full">
-          {/* Header */}
-          <p className="text-sm mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
+          <p className="text-xs font-medium mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
           <p className="text-4xl font-bold leading-tight mb-1" style={{ color: 'var(--neu-text)' }}>
             {fmt(data.verfuegbarMinutes ?? 0)}
           </p>
-          <p className="text-sm mb-5" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
+          <p className="text-xs mb-4" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
 
-          {/* Project bars */}
-          <div className="flex flex-col gap-3 flex-1">
+          {/* Projektbalken */}
+          <div className="flex flex-col gap-2.5 flex-1">
             {projects.slice(0, 5).map(p => (
-              <div key={p.name} className="flex items-center gap-4">
-                <span className="text-sm w-24 shrink-0 truncate" style={{ color: 'var(--neu-text)' }}>
+              <div key={p.name} className="flex items-center gap-3">
+                <span className="text-xs w-20 shrink-0 truncate" style={{ color: 'var(--neu-text-secondary)' }}>
                   {p.name}
                 </span>
-                <div
-                  className="h-2.5 rounded-full"
-                  style={{
-                    width: `${Math.round((p.minutes / maxMin) * 100)}%`,
-                    background: p.color || '#10b981',
-                    minWidth: '4px',
-                  }}
-                />
-              </div>
-            ))}
-            {projects.length === 0 && (
-              <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Keine Zeiteinträge vorhanden</p>
-            )}
-          </div>
-        </a>
-      );
-    }
-
-    case 'zeiterfassung_full': {
-      const projects = data.userProjectBreakdown ?? [];
-      const maxMin = Math.max(...projects.map(p => p.minutes), 1);
-      const team = data.teamMemberHours ?? [];
-      const TEAM_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#10b981'];
-
-      return (
-        <a href="/zeiterfassung" className="flex h-full gap-8">
-          {/* Left: own projects */}
-          <div className="flex flex-col flex-1 min-w-0">
-            <p className="text-sm mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
-            <p className="text-4xl font-bold leading-tight mb-1" style={{ color: 'var(--neu-text)' }}>
-              {fmt(data.verfuegbarMinutes ?? 0)}
-            </p>
-            <p className="text-sm mb-5" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
-            <div className="flex flex-col gap-3 flex-1">
-              {projects.slice(0, 4).map(p => (
-                <div key={p.name} className="flex items-center gap-4">
-                  <span className="text-sm w-24 shrink-0 truncate" style={{ color: 'var(--neu-text)' }}>
-                    {p.name}
-                  </span>
+                <div className="flex-1 flex items-center">
                   <div
-                    className="h-2.5 rounded-full"
+                    className="h-2 rounded-full"
                     style={{
                       width: `${Math.round((p.minutes / maxMin) * 100)}%`,
                       background: p.color || '#10b981',
@@ -156,9 +125,53 @@ export function WidgetContent({ widgetKey, data }: { widgetKey: string; data: Wi
                     }}
                   />
                 </div>
+              </div>
+            ))}
+            {projects.length === 0 && (
+              <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Keine Zeiteinträge vorhanden</p>
+            )}
+          </div>
+        </a>
+      );
+    }
+
+    // Full: eigene Stunden + Projekte links, Team-Stunden rechts
+    case 'zeiterfassung_full': {
+      const projects = data.userProjectBreakdown ?? [];
+      const maxProjMin = Math.max(...projects.map(p => p.minutes), 1);
+      const team = data.teamMemberHours ?? [];
+      const maxTeamMin = Math.max(...team.map(m => m.minutes), 1);
+      const TEAM_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#10b981'];
+
+      return (
+        <a href="/zeiterfassung" className="flex h-full gap-6">
+          {/* Links: eigene Projekte */}
+          <div className="flex flex-col flex-1 min-w-0">
+            <p className="text-xs font-medium mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
+            <p className="text-4xl font-bold leading-tight mb-1" style={{ color: 'var(--neu-text)' }}>
+              {fmt(data.verfuegbarMinutes ?? 0)}
+            </p>
+            <p className="text-xs mb-4" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
+            <div className="flex flex-col gap-2.5 flex-1">
+              {projects.slice(0, 4).map(p => (
+                <div key={p.name} className="flex items-center gap-3">
+                  <span className="text-xs w-20 shrink-0 truncate" style={{ color: 'var(--neu-text-secondary)' }}>
+                    {p.name}
+                  </span>
+                  <div className="flex-1 flex items-center">
+                    <div
+                      className="h-2 rounded-full"
+                      style={{
+                        width: `${Math.round((p.minutes / maxProjMin) * 100)}%`,
+                        background: p.color || '#10b981',
+                        minWidth: '4px',
+                      }}
+                    />
+                  </div>
+                </div>
               ))}
               {projects.length === 0 && (
-                <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Keine Einträge</p>
+                <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Keine Einträge</p>
               )}
             </div>
           </div>
@@ -166,26 +179,34 @@ export function WidgetContent({ widgetKey, data }: { widgetKey: string; data: Wi
           {/* Divider */}
           <div className="w-px shrink-0 self-stretch" style={{ background: 'var(--neu-border-subtle)' }} />
 
-          {/* Right: team members */}
-          <div className="flex flex-col gap-5 flex-1 min-w-0 justify-center">
-            {team.slice(0, 3).map((member, idx) => (
-              <div key={member.id}>
-                <p className="text-xl font-bold mb-0.5" style={{ color: 'var(--neu-text)' }}>{member.name}</p>
-                <p className="text-sm mb-2" style={{ color: 'var(--neu-text-secondary)' }}>
-                  {fmt(member.minutes)}
-                </p>
-                <div
-                  className="h-2.5 rounded-full"
-                  style={{
-                    width: '80%',
-                    background: TEAM_COLORS[idx % TEAM_COLORS.length],
-                  }}
-                />
-              </div>
-            ))}
-            {team.length === 0 && (
-              <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Keine weiteren Mitglieder</p>
-            )}
+          {/* Rechts: Team-Mitglieder mit Stunden */}
+          <div className="flex flex-col flex-1 min-w-0">
+            <p className="text-xs font-medium mb-3" style={{ color: 'var(--neu-text-secondary)' }}>Team</p>
+            <div className="flex flex-col gap-3 flex-1">
+              {team.slice(0, 4).map((member, idx) => (
+                <div key={member.id}>
+                  <div className="flex items-baseline justify-between mb-1">
+                    <span className="text-sm font-semibold truncate" style={{ color: 'var(--neu-text)' }}>
+                      {member.name}
+                    </span>
+                    <span className="text-xs shrink-0 ml-2" style={{ color: 'var(--neu-text-secondary)' }}>
+                      {fmt(member.minutes)}
+                    </span>
+                  </div>
+                  <div
+                    className="h-2 rounded-full"
+                    style={{
+                      width: `${Math.round((member.minutes / maxTeamMin) * 100)}%`,
+                      background: TEAM_COLORS[idx % TEAM_COLORS.length],
+                      minWidth: '4px',
+                    }}
+                  />
+                </div>
+              ))}
+              {team.length === 0 && (
+                <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Keine weiteren Mitglieder</p>
+              )}
+            </div>
           </div>
         </a>
       );
