@@ -6,10 +6,10 @@ export interface PdfKalkData {
   kunde: string;
   datum: string;
   erstelltVon: string;
-  positionen: { bezeichnung: string; stunden: number }[];
+  positionen: { bezeichnung: string; stunden: number; personaName?: string; stundensatz?: number }[];
+  personenKosten: { name: string; stunden: number; stundensatz: number; kosten: number }[];
   equipment: { name: string; tagessatz: number; tage: number; gesamt: number }[];
   stundenGesamt: number;
-  stundenSatz: number;
   stundenKosten: number;
   steuerProzent: number;
   steuerBetrag: number;
@@ -115,13 +115,17 @@ export async function generateProjektkalkulationPdf(data: PdfKalkData): Promise<
     doc.text('Leistungspositionen', ml, y);
     y += 5;
 
-    const posBody = data.positionen.map((p) => [p.bezeichnung, `${n2(p.stunden)} Std`]);
+    const posBody = data.positionen.map((p) => [
+      p.bezeichnung,
+      p.personaName ?? '—',
+      `${n2(p.stunden)} Std`,
+    ]);
     // Total row
-    posBody.push(['Gesamt', `${n2(data.stundenGesamt)} Std`]);
+    posBody.push(['Gesamt', '', `${n2(data.stundenGesamt)} Std`]);
 
     autoTable(doc, {
       startY: y,
-      head: [['Bezeichnung', 'Stunden']],
+      head: [['Bezeichnung', 'Persona', 'Stunden']],
       body: posBody,
       theme: 'grid',
       styles: {
@@ -140,7 +144,8 @@ export async function generateProjektkalkulationPdf(data: PdfKalkData): Promise<
       alternateRowStyles: { fillColor: LIGHT_BG },
       columnStyles: {
         0: { cellWidth: 'auto' },
-        1: { halign: 'right', cellWidth: 35 },
+        1: { cellWidth: 35 },
+        2: { halign: 'right', cellWidth: 35 },
       },
       didParseCell: (hookData) => {
         if (hookData.row.index === posBody.length - 1) {
@@ -217,12 +222,35 @@ export async function generateProjektkalkulationPdf(data: PdfKalkData): Promise<
   doc.text('Kalkulation', ml, y);
   y += 8;
 
-  const summaryRows: { label: string; detail: string; value: string; bold?: boolean; color?: typeof ACCENT }[] = [
-    {
-      label: 'Stundenkosten',
-      detail: `${n2(data.stundenGesamt)} Std × ${data.stundenSatz} €/Std`,
-      value: eur(data.stundenKosten),
-    },
+  // Per-persona rows
+  for (const pk of data.personenKosten) {
+    doc.setFillColor(...LIGHT_BG);
+    doc.rect(ml, y - 4, mr - ml, 8, 'F');
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    doc.text(pk.name, ml + 2, y);
+    doc.setFontSize(7);
+    doc.setTextColor(GRAY.r, GRAY.g, GRAY.b);
+    doc.text(`${n2(pk.stunden)} Std × ${n2(pk.stundensatz)} €/Std`, ml + 55, y);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    doc.text(eur(pk.kosten), mr - 2, y, { align: 'right' });
+    y += 9;
+  }
+
+  // Stundenkosten gesamt subtotal
+  doc.setFillColor(...LIGHT_BG);
+  doc.rect(ml, y - 4, mr - ml, 8, 'F');
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(60, 60, 60);
+  doc.text('Stundenkosten gesamt', ml + 2, y);
+  doc.text(eur(data.stundenKosten), mr - 2, y, { align: 'right' });
+  y += 9;
+
+  const additionalRows: { label: string; detail: string; value: string }[] = [
     {
       label: `Steuerrücklage (${data.steuerProzent}%)`,
       detail: '',
@@ -240,7 +268,7 @@ export async function generateProjektkalkulationPdf(data: PdfKalkData): Promise<
     },
   ];
 
-  for (const row of summaryRows) {
+  for (const row of additionalRows) {
     doc.setFillColor(...LIGHT_BG);
     doc.rect(ml, y - 4, mr - ml, 8, 'F');
     doc.setFontSize(9);

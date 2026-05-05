@@ -11,12 +11,13 @@ export default async function ProjektkalkulationPage() {
     { data: { user } },
     { data: paketeRaw },
     { data: equipmentRaw },
+    { data: personasRaw },
     maRaw,
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase
       .from('kalkulation_pakete')
-      .select('id, name, kalkulation_paket_positionen(id, bezeichnung, stunden, sort_order)')
+      .select('id, name, kalkulation_paket_positionen(id, bezeichnung, stunden, sort_order, persona_id)')
       .order('created_at', { ascending: true }),
     supabase
       .from('equipment_items')
@@ -24,6 +25,10 @@ export default async function ProjektkalkulationPage() {
       .eq('status', 'active')
       .not('day_rate', 'is', null)
       .order('name', { ascending: true }),
+    supabase
+      .from('kalkulation_personas')
+      .select('id, name, stundensatz')
+      .order('created_at', { ascending: true }),
     loadSettingsServer('monatsabrechnung'),
   ]);
 
@@ -31,6 +36,8 @@ export default async function ProjektkalkulationPage() {
   const { data: profile } = user
     ? await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
     : { data: null };
+
+  void profile; // used in ProjektKalkulator via erstelltVon in the future
 
   const settings: MonatsabrechnungSettings = maRaw ?? DEFAULT_MONATSABRECHNUNG;
 
@@ -43,6 +50,7 @@ export default async function ProjektkalkulationPage() {
         bezeichnung: string;
         stunden: number;
         sort_order: number;
+        persona_id: string | null;
       }[]
     )
       .sort((a, b) => a.sort_order - b.sort_order)
@@ -50,6 +58,7 @@ export default async function ProjektkalkulationPage() {
         id: pos.id,
         bezeichnung: pos.bezeichnung,
         stunden: Number(pos.stunden),
+        persona_id: pos.persona_id as string | null,
       })),
   }));
 
@@ -58,6 +67,12 @@ export default async function ProjektkalkulationPage() {
     name: e.name as string,
     category: e.category as string,
     day_rate: e.day_rate !== null ? Number(e.day_rate) : null,
+  }));
+
+  const personas = (personasRaw ?? []).map((p) => ({
+    id: p.id as string,
+    name: p.name as string,
+    stundensatz: Number(p.stundensatz),
   }));
 
   return (
@@ -90,6 +105,7 @@ export default async function ProjektkalkulationPage() {
         pakete={pakete}
         equipmentItems={equipmentItems}
         settings={settings}
+        personas={personas}
       />
     </div>
   );

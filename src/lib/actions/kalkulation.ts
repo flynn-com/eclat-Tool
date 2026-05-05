@@ -46,7 +46,8 @@ export async function createPosition(
   paketId: string,
   bezeichnung: string,
   stunden: number,
-  sortOrder: number
+  sortOrder: number,
+  personaId?: string | null
 ) {
   const supabase = await createClient();
   const { error } = await supabase.from('kalkulation_paket_positionen').insert({
@@ -54,17 +55,23 @@ export async function createPosition(
     bezeichnung: bezeichnung.trim(),
     stunden,
     sort_order: sortOrder,
+    persona_id: personaId ?? null,
   });
   if (error) return { error: error.message };
   revalidate();
   return { error: null };
 }
 
-export async function updatePosition(id: string, bezeichnung: string, stunden: number) {
+export async function updatePosition(
+  id: string,
+  bezeichnung: string,
+  stunden: number,
+  personaId?: string | null
+) {
   const supabase = await createClient();
   const { error } = await supabase
     .from('kalkulation_paket_positionen')
-    .update({ bezeichnung: bezeichnung.trim(), stunden })
+    .update({ bezeichnung: bezeichnung.trim(), stunden, persona_id: personaId ?? null })
     .eq('id', id);
   if (error) return { error: error.message };
   revalidate();
@@ -77,6 +84,39 @@ export async function deletePosition(id: string) {
     .from('kalkulation_paket_positionen')
     .delete()
     .eq('id', id);
+  if (error) return { error: error.message };
+  revalidate();
+  return { error: null };
+}
+
+// ========== Personas ==========
+
+export async function createPersona(name: string, stundensatz: number, farbe?: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('kalkulation_personas').insert({
+    name: name.trim(),
+    stundensatz,
+    farbe: farbe ?? null,
+  });
+  if (error) return { error: error.message };
+  revalidate();
+  return { error: null };
+}
+
+export async function updatePersona(id: string, name: string, stundensatz: number, farbe?: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('kalkulation_personas')
+    .update({ name: name.trim(), stundensatz, farbe: farbe ?? null })
+    .eq('id', id);
+  if (error) return { error: error.message };
+  revalidate();
+  return { error: null };
+}
+
+export async function deletePersona(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('kalkulation_personas').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidate();
   return { error: null };

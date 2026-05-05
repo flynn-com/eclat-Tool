@@ -5,10 +5,17 @@ import { Plus, Trash2, X, ChevronDown, FileText, Search } from 'lucide-react';
 import type { MonatsabrechnungSettings } from '@/lib/settings';
 import type { PdfKalkData } from '@/lib/pdf-projektkalkulation';
 
+interface Persona {
+  id: string;
+  name: string;
+  stundensatz: number;
+}
+
 interface PaketPositionTemplate {
   id: string;
   bezeichnung: string;
   stunden: number;
+  persona_id: string | null;
 }
 
 interface PaketTemplate {
@@ -28,6 +35,7 @@ interface Props {
   pakete: PaketTemplate[];
   equipmentItems: EquipmentItem[];
   settings: MonatsabrechnungSettings;
+  personas: Persona[];
 }
 
 // A selected paket group in the kalkulation
@@ -35,13 +43,21 @@ interface SelectedPaket {
   instanceId: string; // unique per added instance
   paketId: string;
   paketName: string;
-  positionen: { id: string; bezeichnung: string; stunden: string }[];
+  positionen: { id: string; bezeichnung: string; stunden: string; persona_id: string | null }[];
 }
 
 // A custom position
 interface EigenePosition {
   id: string;
   bezeichnung: string;
+  stunden: string;
+  persona_id: string | null;
+}
+
+// Direct persona time entry
+interface PersonaDirect {
+  id: string;
+  personaId: string;
   stunden: string;
 }
 
@@ -57,34 +73,99 @@ function eur(v: number) {
   return v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 }
 
-export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
+function PersonaBadge({ persona }: { persona: Persona | undefined }) {
+  if (!persona) return null;
+  const color = 'var(--neu-accent)';
+  return (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+      style={{ background: color + '22', color, border: `1px solid ${color}55` }}
+    >
+      {persona.name}
+    </span>
+  );
+}
+
+export function ProjektKalkulator({ pakete, equipmentItems, settings, personas }: Props) {
   const [projektname, setProjektname] = useState('');
   const [kunde, setKunde] = useState('');
   const [selectedPakete, setSelectedPakete] = useState<SelectedPaket[]>([]);
   const [eigenePsn, setEigenePsn] = useState<EigenePosition[]>([]);
+  const [personaDirect, setPersonaDirect] = useState<PersonaDirect[]>([]);
   const [equipment, setEquipment] = useState<EquipmentRow[]>([]);
 
   // UI state
   const [showPaketDropdown, setShowPaketDropdown] = useState(false);
   const [showEquipmentPicker, setShowEquipmentPicker] = useState(false);
+  const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
   const [equipmentSearch, setEquipmentSearch] = useState('');
   const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   // ---- Derived calculations ----
-  const stundenGesamt = useMemo(() => {
-    let total = 0;
+
+  // Collect all billable items with persona info
+  const billableItems = useMemo(() => {
+    const items: { stunden: number; persona_id: string | null }[] = [];
     for (const sp of selectedPakete) {
       for (const pos of sp.positionen) {
-        total += parseFloat(pos.stunden.replace(',', '.')) || 0;
+        items.push({
+          stunden: parseFloat(pos.stunden.replace(',', '.')) || 0,
+          persona_id: pos.persona_id,
+        });
       }
     }
     for (const pos of eigenePsn) {
-      total += parseFloat(pos.stunden.replace(',', '.')) || 0;
+      items.push({
+        stunden: parseFloat(pos.stunden.replace(',', '.')) || 0,
+        persona_id: pos.persona_id,
+      });
     }
-    return Math.round(total * 100) / 100;
-  }, [selectedPakete, eigenePsn]);
+    for (const pd of personaDirect) {
+      items.push({
+        stunden: parseFloat(pd.stunden.replace(',', '.')) || 0,
+        persona_id: pd.personaId,
+      });
+    }
+    return items;
+  }, [selectedPakete, eigenePsn, personaDirect]);
 
-  const stundenKosten = Math.round(stundenGesamt * settings.stundenSatz * 100) / 100;
+  const stundenGesamt = useMemo(
+    () => Math.round(billableItems.reduce((s, i) => s + i.stunden, 0) * 100) / 100,
+    [billableItems]
+  );
+
+  // Group costs by persona for summary
+  const personenKosten = useMemo(() => {
+    const map = new Map<string, { name: string; stunden: number; stundensatz: number }>();
+
+    for (const item of billableItems) {
+      const persona = personas.find((p) => p.id === item.persona_id);
+      const key = persona ? persona.id : '__sonstige__';
+      const name = persona ? persona.name : 'Sonstige';
+      const stundensatz = persona ? persona.stundensatz : settings.stundenSatz;
+      const existing = map.get(key);
+      if (existing) {
+        existing.stunden += item.stunden;
+      } else {
+        map.set(key, { name, stunden: item.stunden, stundensatz });
+      }
+    }
+
+    return Array.from(map.entries())
+      .filter(([, v]) => v.stunden > 0)
+      .map(([, v]) => ({
+        name: v.name,
+        stunden: Math.round(v.stunden * 100) / 100,
+        stundensatz: v.stundensatz,
+        kosten: Math.round(v.stunden * v.stundensatz * 100) / 100,
+      }));
+  }, [billableItems, personas, settings.stundenSatz]);
+
+  const stundenKosten = useMemo(
+    () => Math.round(personenKosten.reduce((s, pk) => s + pk.kosten, 0) * 100) / 100,
+    [personenKosten]
+  );
+
   const steuerBetrag = Math.round(stundenKosten * (settings.steuerProzent / 100) * 100) / 100;
   const investBetrag = Math.round(stundenKosten * (settings.investProzent / 100) * 100) / 100;
 
@@ -108,6 +189,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
         id: p.id,
         bezeichnung: p.bezeichnung,
         stunden: String(p.stunden),
+        persona_id: p.persona_id,
       })),
     };
     setSelectedPakete((prev) => [...prev, instance]);
@@ -133,6 +215,21 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
     );
   }
 
+  function updatePaketPositionPersona(instanceId: string, posId: string, personaId: string | null) {
+    setSelectedPakete((prev) =>
+      prev.map((sp) =>
+        sp.instanceId === instanceId
+          ? {
+              ...sp,
+              positionen: sp.positionen.map((pos) =>
+                pos.id === posId ? { ...pos, persona_id: personaId } : pos
+              ),
+            }
+          : sp
+      )
+    );
+  }
+
   function removePaketPosition(instanceId: string, posId: string) {
     setSelectedPakete((prev) =>
       prev.map((sp) =>
@@ -147,7 +244,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
   function addEigenePosition() {
     setEigenePsn((prev) => [
       ...prev,
-      { id: `ep-${Date.now()}`, bezeichnung: '', stunden: '' },
+      { id: `ep-${Date.now()}`, bezeichnung: '', stunden: '', persona_id: null },
     ]);
   }
 
@@ -157,8 +254,33 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
     );
   }
 
+  function updateEigenePositionPersona(id: string, personaId: string | null) {
+    setEigenePsn((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, persona_id: personaId } : p))
+    );
+  }
+
   function removeEigenePosition(id: string) {
     setEigenePsn((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  // ---- Persona Direct ----
+  function addPersonaDirect(persona: Persona) {
+    setPersonaDirect((prev) => [
+      ...prev,
+      { id: `pd-${Date.now()}`, personaId: persona.id, stunden: '1' },
+    ]);
+    setShowPersonaDropdown(false);
+  }
+
+  function updatePersonaDirectStunden(id: string, value: string) {
+    setPersonaDirect((prev) =>
+      prev.map((pd) => (pd.id === id ? { ...pd, stunden: value } : pd))
+    );
+  }
+
+  function removePersonaDirect(id: string) {
+    setPersonaDirect((prev) => prev.filter((pd) => pd.id !== id));
   }
 
   // ---- Equipment ----
@@ -195,20 +317,37 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
     setIsPdfLoading(true);
     try {
       const { generateProjektkalkulationPdf } = await import('@/lib/pdf-projektkalkulation');
-      const allPositionen: { bezeichnung: string; stunden: number }[] = [];
+      const allPositionen: { bezeichnung: string; stunden: number; personaName?: string; stundensatz?: number }[] = [];
       for (const sp of selectedPakete) {
         for (const pos of sp.positionen) {
+          const persona = personas.find((p) => p.id === pos.persona_id);
           allPositionen.push({
             bezeichnung: pos.bezeichnung,
             stunden: parseFloat(pos.stunden.replace(',', '.')) || 0,
+            personaName: persona?.name,
+            stundensatz: persona?.stundensatz ?? settings.stundenSatz,
           });
         }
       }
       for (const pos of eigenePsn) {
         if (pos.bezeichnung.trim()) {
+          const persona = personas.find((p) => p.id === pos.persona_id);
           allPositionen.push({
             bezeichnung: pos.bezeichnung,
             stunden: parseFloat(pos.stunden.replace(',', '.')) || 0,
+            personaName: persona?.name,
+            stundensatz: persona?.stundensatz ?? settings.stundenSatz,
+          });
+        }
+      }
+      for (const pd of personaDirect) {
+        const persona = personas.find((p) => p.id === pd.personaId);
+        if (persona) {
+          allPositionen.push({
+            bezeichnung: persona.name,
+            stunden: parseFloat(pd.stunden.replace(',', '.')) || 0,
+            personaName: persona.name,
+            stundensatz: persona.stundensatz,
           });
         }
       }
@@ -228,9 +367,9 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
         datum,
         erstelltVon: '',
         positionen: allPositionen,
+        personenKosten,
         equipment: eqData,
         stundenGesamt,
-        stundenSatz: settings.stundenSatz,
         stundenKosten,
         steuerProzent: settings.steuerProzent,
         steuerBetrag,
@@ -344,31 +483,45 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
                 </button>
               </div>
               <div className="space-y-1.5">
-                {sp.positionen.map((pos) => (
-                  <div key={pos.id} className="flex items-center gap-2">
-                    <input
-                      className="neu-input text-sm flex-1"
-                      value={pos.bezeichnung}
-                      onChange={(e) => updatePaketPosition(sp.instanceId, pos.id, 'bezeichnung', e.target.value)}
-                    />
-                    <input
-                      className="neu-input text-sm w-20"
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      value={pos.stunden}
-                      onChange={(e) => updatePaketPosition(sp.instanceId, pos.id, 'stunden', e.target.value)}
-                    />
-                    <span className="text-xs w-6" style={{ color: 'var(--neu-text-secondary)' }}>Std</span>
-                    <button
-                      onClick={() => removePaketPosition(sp.instanceId, pos.id)}
-                      className="p-1 hover:opacity-70"
-                      style={{ color: '#ef4444' }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
+                {sp.positionen.map((pos) => {
+                  const posPersona = personas.find((p) => p.id === pos.persona_id);
+                  return (
+                    <div key={pos.id} className="flex items-center gap-2 flex-wrap">
+                      <input
+                        className="neu-input text-sm flex-1 min-w-[120px]"
+                        value={pos.bezeichnung}
+                        onChange={(e) => updatePaketPosition(sp.instanceId, pos.id, 'bezeichnung', e.target.value)}
+                      />
+                      <input
+                        className="neu-input text-sm w-20"
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        value={pos.stunden}
+                        onChange={(e) => updatePaketPosition(sp.instanceId, pos.id, 'stunden', e.target.value)}
+                      />
+                      <span className="text-xs w-6" style={{ color: 'var(--neu-text-secondary)' }}>Std</span>
+                      <select
+                        className="neu-input text-sm"
+                        value={pos.persona_id ?? ''}
+                        onChange={(e) => updatePaketPositionPersona(sp.instanceId, pos.id, e.target.value || null)}
+                      >
+                        <option value="">— kein</option>
+                        {personas.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                      {posPersona && <PersonaBadge persona={posPersona} />}
+                      <button
+                        onClick={() => removePaketPosition(sp.instanceId, pos.id)}
+                        className="p-1 hover:opacity-70"
+                        style={{ color: '#ef4444' }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -393,33 +546,47 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
               </p>
             )}
             <div className="space-y-1.5">
-              {eigenePsn.map((pos) => (
-                <div key={pos.id} className="flex items-center gap-2">
-                  <input
-                    className="neu-input text-sm flex-1"
-                    placeholder="Bezeichnung"
-                    value={pos.bezeichnung}
-                    onChange={(e) => updateEigenePosition(pos.id, 'bezeichnung', e.target.value)}
-                  />
-                  <input
-                    className="neu-input text-sm w-20"
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    placeholder="0"
-                    value={pos.stunden}
-                    onChange={(e) => updateEigenePosition(pos.id, 'stunden', e.target.value)}
-                  />
-                  <span className="text-xs w-6" style={{ color: 'var(--neu-text-secondary)' }}>Std</span>
-                  <button
-                    onClick={() => removeEigenePosition(pos.id)}
-                    className="p-1 hover:opacity-70"
-                    style={{ color: '#ef4444' }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
+              {eigenePsn.map((pos) => {
+                const posPersona = personas.find((p) => p.id === pos.persona_id);
+                return (
+                  <div key={pos.id} className="flex items-center gap-2 flex-wrap">
+                    <input
+                      className="neu-input text-sm flex-1 min-w-[120px]"
+                      placeholder="Bezeichnung"
+                      value={pos.bezeichnung}
+                      onChange={(e) => updateEigenePosition(pos.id, 'bezeichnung', e.target.value)}
+                    />
+                    <input
+                      className="neu-input text-sm w-20"
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      placeholder="0"
+                      value={pos.stunden}
+                      onChange={(e) => updateEigenePosition(pos.id, 'stunden', e.target.value)}
+                    />
+                    <span className="text-xs w-6" style={{ color: 'var(--neu-text-secondary)' }}>Std</span>
+                    <select
+                      className="neu-input text-sm"
+                      value={pos.persona_id ?? ''}
+                      onChange={(e) => updateEigenePositionPersona(pos.id, e.target.value || null)}
+                    >
+                      <option value="">— kein</option>
+                      {personas.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    {posPersona && <PersonaBadge persona={posPersona} />}
+                    <button
+                      onClick={() => removeEigenePosition(pos.id)}
+                      className="p-1 hover:opacity-70"
+                      style={{ color: '#ef4444' }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -432,6 +599,98 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
           </span>
         </div>
       </div>
+
+      {/* Section 2b: Personas direkt */}
+      {personas.length > 0 && (
+        <div className="neu-raised p-5">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h2 className="text-base font-semibold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>
+              Personas
+            </h2>
+            <div className="relative">
+              <button
+                className="neu-btn flex items-center gap-2 text-sm px-3 py-2"
+                onClick={() => setShowPersonaDropdown((v) => !v)}
+              >
+                <Plus className="h-4 w-4" />
+                Persona hinzufügen
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              {showPersonaDropdown && (
+                <div
+                  className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-lg min-w-[200px] overflow-hidden"
+                  style={{ background: 'var(--neu-surface)', border: '1px solid var(--neu-border)' }}
+                >
+                  {personas.map((p) => (
+                    <button
+                      key={p.id}
+                      className="w-full text-left px-4 py-2.5 text-sm transition-opacity hover:opacity-70"
+                      style={{ color: 'var(--neu-text)' }}
+                      onClick={() => addPersonaDirect(p)}
+                    >
+                      <span className="font-medium">{p.name}</span>
+                      <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                        {p.stundensatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Std
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    className="w-full text-left px-4 py-2 text-xs border-t"
+                    style={{ color: 'var(--neu-text-secondary)', borderColor: 'var(--neu-border)' }}
+                    onClick={() => setShowPersonaDropdown(false)}
+                  >
+                    Schließen
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {personaDirect.length === 0 && (
+            <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>
+              Keine direkten Persona-Zeiten. Füge Personas direkt hinzu für Zeiten außerhalb von Paketen.
+            </p>
+          )}
+
+          <div className="space-y-2">
+            {personaDirect.map((pd) => {
+              const persona = personas.find((p) => p.id === pd.personaId);
+              if (!persona) return null;
+              const stunden = parseFloat(pd.stunden.replace(',', '.')) || 0;
+              const kosten = stunden * persona.stundensatz;
+              return (
+                <div key={pd.id} className="neu-pressed px-3 py-2 rounded-xl flex items-center gap-3 flex-wrap">
+                  <PersonaBadge persona={persona} />
+                  <span className="text-xs flex-1" style={{ color: 'var(--neu-text-secondary)' }}>
+                    {persona.stundensatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Std
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      className="neu-input text-sm w-20"
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={pd.stunden}
+                      onChange={(e) => updatePersonaDirectStunden(pd.id, e.target.value)}
+                    />
+                    <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Std</span>
+                  </div>
+                  <span className="text-sm font-medium w-24 text-right" style={{ color: 'var(--neu-text)' }}>
+                    {eur(kosten)}
+                  </span>
+                  <button
+                    onClick={() => removePersonaDirect(pd.id)}
+                    className="p-1 hover:opacity-70"
+                    style={{ color: '#ef4444' }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Section 3: Equipment */}
       <div className="neu-raised p-5">
@@ -560,17 +819,47 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings }: Props) {
           Kalkulation
         </h2>
         <div className="space-y-1.5">
-          <div className="neu-pressed px-4 py-2 flex justify-between rounded-xl items-center">
-            <span className="text-sm" style={{ color: 'var(--neu-text)' }}>Stundenkosten</span>
-            <div className="flex items-center gap-3">
-              <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
-                {stundenGesamt.toFixed(1)} Std × {settings.stundenSatz} €/Std
+          {/* Per-persona cost rows */}
+          {personenKosten.map((pk) => (
+            <div key={pk.name} className="neu-pressed px-4 py-2 flex justify-between rounded-xl items-center">
+              <span className="text-sm" style={{ color: 'var(--neu-text)' }}>{pk.name}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                  {pk.stunden.toFixed(1)} Std × {pk.stundensatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/Std
+                </span>
+                <span className="text-sm font-medium w-28 text-right" style={{ color: 'var(--neu-text)' }}>
+                  {eur(pk.kosten)}
+                </span>
+              </div>
+            </div>
+          ))}
+
+          {/* Stundenkosten gesamt subtotal (only show when there are persona breakdowns) */}
+          {personenKosten.length > 0 && (
+            <div className="neu-pressed px-4 py-2 flex justify-between rounded-xl items-center">
+              <span className="text-sm font-semibold" style={{ color: 'var(--neu-text)' }}>
+                Stundenkosten gesamt
               </span>
-              <span className="text-sm font-medium w-28 text-right" style={{ color: 'var(--neu-text)' }}>
+              <span className="text-sm font-semibold w-28 text-right" style={{ color: 'var(--neu-text)' }}>
                 {eur(stundenKosten)}
               </span>
             </div>
-          </div>
+          )}
+
+          {personenKosten.length === 0 && (
+            <div className="neu-pressed px-4 py-2 flex justify-between rounded-xl items-center">
+              <span className="text-sm" style={{ color: 'var(--neu-text)' }}>Stundenkosten</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                  {stundenGesamt.toFixed(1)} Std × {settings.stundenSatz} €/Std
+                </span>
+                <span className="text-sm font-medium w-28 text-right" style={{ color: 'var(--neu-text)' }}>
+                  {eur(stundenKosten)}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="neu-pressed px-4 py-2 flex justify-between rounded-xl items-center">
             <span className="text-sm" style={{ color: 'var(--neu-text)' }}>
               Steuerrücklage ({settings.steuerProzent}%)
