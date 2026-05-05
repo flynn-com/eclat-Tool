@@ -20,6 +20,11 @@ interface EinnahmePosition {
   betrag: string;
 }
 
+interface AusgabePosition {
+  beschreibung: string;
+  betrag: string;
+}
+
 interface BonusEintrag {
   personId: string;
   typ: 'neukunde' | 'wiederkehrend';
@@ -65,7 +70,7 @@ function berechneStaffelBonus(umsatz: number, staffeln: Staffel[]): number {
 
 export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnungsMonat, abrechnungsMonatLabel }: MonatsabrechnungRechnerProps) {
   const [einnahmePositionen, setEinnahmePositionen] = useState<EinnahmePosition[]>([{ projekt: '', betrag: '' }]);
-  const [ausgaben, setAusgaben] = useState('');
+  const [ausgabePositionen, setAusgabePositionen] = useState<AusgabePosition[]>([{ beschreibung: '', betrag: '' }]);
   const [boni, setBoni] = useState<BonusEintrag[]>([]);
   const [stundenManual, setStundenManual] = useState<Record<string, string>>({});
   const [ergebnis, setErgebnis] = useState<{
@@ -95,7 +100,7 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
       if (raw) {
         const draft = JSON.parse(raw);
         setEinnahmePositionen(draft.einnahmePositionen?.length > 0 ? draft.einnahmePositionen : [{ projekt: '', betrag: '' }]);
-        setAusgaben(draft.ausgaben || '');
+        setAusgabePositionen(draft.ausgabePositionen?.length > 0 ? draft.ausgabePositionen : [{ beschreibung: '', betrag: '' }]);
         setBoni(draft.boni || []);
         setStundenManual(draft.stundenManual || {});
       }
@@ -106,11 +111,28 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ einnahmePositionen, ausgaben, boni, stundenManual }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ einnahmePositionen, ausgabePositionen, boni, stundenManual }));
     } catch {}
-  }, [einnahmePositionen, ausgaben, boni, stundenManual, loaded]);
+  }, [einnahmePositionen, ausgabePositionen, boni, stundenManual, loaded]);
 
   const clearCalc = () => { setErgebnis(null); setGespeichert(false); };
+
+  // Ausgabe helpers
+  const addAusgabe = () => {
+    setAusgabePositionen([...ausgabePositionen, { beschreibung: '', betrag: '' }]);
+    clearCalc();
+  };
+  const updateAusgabe = (index: number, field: keyof AusgabePosition, value: string) => {
+    const neu = [...ausgabePositionen];
+    neu[index] = { ...neu[index], [field]: value };
+    setAusgabePositionen(neu);
+    clearCalc();
+  };
+  const removeAusgabe = (index: number) => {
+    if (ausgabePositionen.length <= 1) return;
+    setAusgabePositionen(ausgabePositionen.filter((_, i) => i !== index));
+    clearCalc();
+  };
 
   // Einnahme helpers
   const addEinnahme = () => {
@@ -162,7 +184,7 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
   // Live calculation values
   const parse = (s: string) => parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
   const einnahmenZahl = einnahmePositionen.reduce((s, p) => s + parse(p.betrag), 0);
-  const ausgabenZahl = parse(ausgaben);
+  const ausgabenZahl = ausgabePositionen.reduce((s, p) => s + parse(p.betrag), 0);
   const gesamtSumme = einnahmenZahl - ausgabenZahl;
   const steuerruecklage = gesamtSumme * (settings.steuerProzent / 100);
   const investruecklage = gesamtSumme * (settings.investProzent / 100);
@@ -300,7 +322,7 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
       ausgaben: ausgabenZahl,
       abrechnungsgrundlage: ergebnis.abrechnungsgrundlage,
       monat: abrechnungsMonat,
-      verteilung_prozent: { ...settings, einnahmePositionen: einnahmePositionen.filter(p => parse(p.betrag) > 0) },
+      verteilung_prozent: { ...settings, einnahmePositionen: einnahmePositionen.filter(p => parse(p.betrag) > 0), ausgabePositionen: ausgabePositionen.filter(p => parse(p.betrag) > 0) },
       positionen: ergebnis.personen,
     });
 
@@ -320,6 +342,7 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
     const doc = await generateMonatsabrechnungPdf({
       monat: abrechnungsMonatLabel,
       einnahmePositionen: einnahmePositionen.filter(p => parse(p.betrag) > 0),
+      ausgabePositionen: ausgabePositionen.filter(p => parse(p.betrag) > 0),
       einnahmen: einnahmenZahl,
       ausgaben: ausgabenZahl,
       gesamtSumme: ergebnis.gesamtSumme,
@@ -419,11 +442,41 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
       {/* 3. Ausgaben */}
       <div className="neu-raised p-5">
         <h3 className="text-base font-bold mb-3" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>Ausgaben</h3>
-        <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Ausgaben gesamt netto (EUR)</label>
-          <input type="text" value={ausgaben} onChange={(e) => { setAusgaben(e.target.value); clearCalc(); }} placeholder="z.B. 15000" className="neu-input w-full text-sm" />
+        <p className="text-xs mb-3" style={{ color: 'var(--neu-text-secondary)' }}>Alle Ausgaben dieses Monats einzeln auflisten (netto)</p>
+        <div className="space-y-2 mb-3">
+          {ausgabePositionen.map((pos, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={pos.beschreibung}
+                onChange={(e) => updateAusgabe(i, 'beschreibung', e.target.value)}
+                placeholder="Beschreibung / Kategorie"
+                className="neu-input flex-1 text-sm py-1.5"
+              />
+              <input
+                type="text"
+                value={pos.betrag}
+                onChange={(e) => updateAusgabe(i, 'betrag', e.target.value)}
+                placeholder="Betrag (EUR)"
+                className="neu-input w-32 text-sm py-1.5 text-right"
+              />
+              {ausgabePositionen.length > 1 && (
+                <button onClick={() => removeAusgabe(i)} className="p-1">
+                  <Trash2 className="h-3.5 w-3.5" style={{ color: 'var(--neu-accent-mid)' }} />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
-        <div className="mt-3 neu-pressed px-4 py-2 flex items-center justify-between">
+        <button onClick={addAusgabe} className="neu-btn flex items-center gap-1 px-3 py-1.5 text-xs mb-4" style={{ color: 'var(--neu-accent)' }}>
+          <Plus className="h-3 w-3" /> Weitere Ausgabe
+        </button>
+
+        <div className="neu-pressed px-4 py-2 flex items-center justify-between">
+          <span className="text-sm font-medium" style={{ color: 'var(--neu-text-secondary)' }}>Ausgaben gesamt</span>
+          <span className="text-base font-bold" style={{ color: '#EF4444' }}>{formatEuro(ausgabenZahl)}</span>
+        </div>
+        <div className="mt-2 neu-pressed px-4 py-2 flex items-center justify-between">
           <span className="text-sm font-medium" style={{ color: 'var(--neu-text-secondary)' }}>Gesamt zu verteilende Summe</span>
           <span className="text-lg font-bold" style={{ color: gesamtSumme > 0 ? 'var(--neu-text)' : '#EF4444' }}>{formatEuro(gesamtSumme)}</span>
         </div>

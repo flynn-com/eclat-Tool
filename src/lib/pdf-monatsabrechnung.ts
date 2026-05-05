@@ -17,6 +17,7 @@ interface PdfPosition {
 interface PdfData {
   monat: string;
   einnahmePositionen?: { projekt: string; betrag: string }[];
+  ausgabePositionen?: { beschreibung: string; betrag: string }[];
   einnahmen: number;
   ausgaben: number;
   gesamtSumme: number;
@@ -138,7 +139,14 @@ export async function generateMonatsabrechnungPdf(data: PdfData) {
       }
     }
   }
-  if (data.ausgaben > 0) {
+  if (data.ausgabePositionen && data.ausgabePositionen.length > 0) {
+    for (const ap of data.ausgabePositionen) {
+      const betrag = parseFloat(ap.betrag.replace(/\./g, '').replace(',', '.')) || 0;
+      if (betrag > 0) {
+        row(ap.beschreibung || 'Ausgabe', `-${eur(betrag)}`, { color: { r: 220, g: 50, b: 50 } });
+      }
+    }
+  } else if (data.ausgaben > 0) {
     row('Ausgaben (netto)', `-${eur(data.ausgaben)}`, { color: { r: 220, g: 50, b: 50 } });
   }
 
