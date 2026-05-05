@@ -115,10 +115,13 @@ export function DashboardGrid({ initialWidgets, widgetData, isAdmin, isNewUser }
 
   // ── Render ─────────────────────────────────────────
   const heightForColSpan = (colSpan: number, key: string): string => {
-    if (key === 'finanzen_chart' || key === 'zeiterfassung_full') return '280px';
+    if (key === 'finanzen_chart') return '300px';
+    if (key === 'zeiterfassung_full') return '260px';
+    if (key === 'zeiterfassung_compact') return '220px';
+    if (key === 'zeiterfassung_mini') return '110px';
     if (colSpan === 1) return '110px';
-    if (colSpan === 2) return '160px';
-    return '240px';
+    if (colSpan === 2) return '180px';
+    return '260px';
   };
 
   return (

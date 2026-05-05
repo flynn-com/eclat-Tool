@@ -6,10 +6,24 @@ import {
 } from 'lucide-react';
 import { FinanzChart } from '@/components/finanzen/finanz-chart';
 
+export interface ProjectMinutes {
+  name: string;
+  color: string;
+  minutes: number;
+}
+
+export interface TeamMemberHours {
+  id: string;
+  name: string;
+  minutes: number; // Stundenkonto-Balance
+}
+
 export interface WidgetData {
   // Zeiterfassung
   verfuegbarMinutes?: number;
   totalMinutes?: number;
+  userProjectBreakdown?: ProjectMinutes[];
+  teamMemberHours?: TeamMemberHours[];
   // Aufgaben
   offeneAufgaben?: number;
   // Projekte
@@ -63,39 +77,116 @@ export function WidgetContent({ widgetKey, data }: { widgetKey: string; data: Wi
   switch (widgetKey) {
 
     // ── Zeiterfassung ──────────────────────────────────
-    case 'zeiterfassung_mini':
+    case 'zeiterfassung_mini': {
       return (
-        <MiniStat
-          icon={<Clock className="h-4 w-4" />}
-          label="Stundenkonto"
-          value={fmt(data.verfuegbarMinutes ?? 0)}
-          href="/zeiterfassung"
-        />
+        <a href="/zeiterfassung" className="block h-full">
+          <p className="text-xs mb-2" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
+          <p className="text-2xl font-bold mb-1" style={{ color: 'var(--neu-text)' }}>
+            {fmt(data.verfuegbarMinutes ?? 0)}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
+        </a>
       );
-    case 'zeiterfassung_compact':
+    }
+
+    case 'zeiterfassung_compact': {
+      const projects = data.userProjectBreakdown ?? [];
+      const maxMin = Math.max(...projects.map(p => p.minutes), 1);
       return (
-        <div className="h-full flex flex-col justify-between">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock className="h-4 w-4 shrink-0" style={{ color: 'var(--neu-accent)' }} />
-            <span className="text-sm font-semibold" style={{ color: 'var(--neu-text)' }}>Zeiterfassung</span>
+        <a href="/zeiterfassung" className="block h-full flex flex-col">
+          <p className="text-xs mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
+          <p className="text-2xl font-bold mb-0.5" style={{ color: 'var(--neu-text)' }}>
+            {fmt(data.verfuegbarMinutes ?? 0)}
+          </p>
+          <p className="text-xs mb-4" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
+          <div className="space-y-2.5 flex-1">
+            {projects.slice(0, 5).map(p => (
+              <div key={p.name} className="flex items-center gap-3">
+                <span className="text-xs w-20 truncate shrink-0" style={{ color: 'var(--neu-text)' }}>{p.name}</span>
+                <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--neu-surface)' }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.round((p.minutes / maxMin) * 100)}%`,
+                      background: p.color || '#10b981',
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+            {projects.length === 0 && (
+              <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Keine Zeiteinträge vorhanden</p>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-3 flex-1">
-            <div className="neu-pressed p-3 rounded-xl">
-              <p className="text-xs mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Verfügbar</p>
-              <p className="text-lg font-bold" style={{ color: 'var(--neu-text)' }}>{fmt(data.verfuegbarMinutes ?? 0)}</p>
-            </div>
-            <div className="neu-pressed p-3 rounded-xl">
-              <p className="text-xs mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Erfasst</p>
-              <p className="text-lg font-bold" style={{ color: 'var(--neu-text)' }}>{fmt(data.totalMinutes ?? 0)}</p>
-            </div>
-          </div>
-          <a href="/zeiterfassung" className="text-xs mt-3 block text-right hover:opacity-80 transition-opacity" style={{ color: 'var(--neu-accent)' }}>
-            Zur Zeiterfassung →
-          </a>
-        </div>
+        </a>
       );
-    case 'zeiterfassung_full':
-      return <Placeholder label="Zeiterfassung Ausführlich" icon={<Clock className="h-8 w-8" />} />;
+    }
+
+    case 'zeiterfassung_full': {
+      const projects = data.userProjectBreakdown ?? [];
+      const maxMin = Math.max(...projects.map(p => p.minutes), 1);
+      const team = data.teamMemberHours ?? [];
+      const maxTeamMin = Math.max(...team.map(t => t.minutes), 1);
+      const TEAM_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#10b981'];
+
+      return (
+        <a href="/zeiterfassung" className="block h-full">
+          <div className="grid grid-cols-2 gap-6 h-full">
+            {/* Left: own projects */}
+            <div className="flex flex-col">
+              <p className="text-xs mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Stundenkonto</p>
+              <p className="text-xl font-bold mb-0.5" style={{ color: 'var(--neu-text)' }}>
+                {fmt(data.verfuegbarMinutes ?? 0)}
+              </p>
+              <p className="text-xs mb-3" style={{ color: 'var(--neu-text-secondary)' }}>Erfasste Stunden</p>
+              <div className="space-y-2.5 flex-1">
+                {projects.slice(0, 5).map(p => (
+                  <div key={p.name} className="flex items-center gap-3">
+                    <span className="text-xs w-16 truncate shrink-0" style={{ color: 'var(--neu-text)' }}>{p.name}</span>
+                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--neu-surface)' }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.round((p.minutes / maxMin) * 100)}%`,
+                          background: p.color || '#10b981',
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                {projects.length === 0 && (
+                  <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Keine Einträge</p>
+                )}
+              </div>
+            </div>
+
+            {/* Right: team members */}
+            <div className="space-y-3">
+              {team.map((member, idx) => (
+                <div key={member.id}>
+                  <p className="text-sm font-semibold mb-0.5" style={{ color: 'var(--neu-text)' }}>{member.name}</p>
+                  <p className="text-xs mb-1.5" style={{ color: 'var(--neu-text-secondary)' }}>
+                    {fmt(member.minutes)}
+                  </p>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--neu-surface)' }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.round((member.minutes / maxTeamMin) * 100)}%`,
+                        background: TEAM_COLORS[idx % TEAM_COLORS.length],
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {team.length === 0 && (
+                <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Keine weiteren Mitglieder</p>
+              )}
+            </div>
+          </div>
+        </a>
+      );
+    }
 
     // ── Aufgaben ───────────────────────────────────────
     case 'aufgaben_mini':

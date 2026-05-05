@@ -25,6 +25,10 @@ export default async function DashboardPage() {
     { count: projectTasksCount },
     { data: widgetRows },
     { data: abrechnungen },
+    { data: projectEntries },
+    { data: allProfiles },
+    { data: allTrackingData },
+    { data: allDeductData },
   ] = await Promise.all([
     supabase.from('profiles').select('role, full_name').eq('id', user!.id).maybeSingle(),
     supabase.from('time_entries').select('duration_minutes').eq('user_id', user!.id).not('end_time', 'is', null),
@@ -34,15 +38,49 @@ export default async function DashboardPage() {
     supabase.from('project_tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', user!.id).neq('status', 'erledigt'),
     supabase.from('user_dashboard_config').select('widget_key, position, col_span').eq('user_id', user!.id).order('position'),
     supabase.from('gewinnverteilungen').select('monat, einnahmen, ausgaben').not('monat', 'is', null).order('monat', { ascending: true }),
+    // Project breakdown for current user
+    supabase.from('time_entries')
+      .select('duration_minutes, projects(name, color)')
+      .eq('user_id', user!.id)
+      .not('end_time', 'is', null)
+      .not('project_id', 'is', null),
+    // All team profiles (for full widget)
+    supabase.from('profiles').select('id, full_name').neq('id', user!.id),
+    // All tracking data for other team members
+    supabase.from('time_entries').select('user_id, duration_minutes').not('end_time', 'is', null).neq('user_id', user!.id),
+    // All deductions for other team members
+    supabase.from('stunden_abrechnungen').select('user_id, stunden').neq('user_id', user!.id),
   ]);
 
   const isAdmin = profile?.role === 'admin';
   const isNewUser = (widgetRows ?? []).length === 0;
 
-  // Zeiterfassung
+  // Zeiterfassung – current user
   const totalMinutes = (trackingData ?? []).reduce((s, e) => s + (e.duration_minutes ?? 0), 0);
   const deductedMinutes = (deductData ?? []).reduce((s, e) => s + Number(e.stunden) * 60, 0);
   const verfuegbarMinutes = Math.max(Math.round(totalMinutes - deductedMinutes), 0);
+
+  // Project breakdown — aggregate by project name
+  const projectMap: Record<string, { name: string; color: string; minutes: number }> = {};
+  for (const entry of (projectEntries ?? [])) {
+    const proj = (entry as any).projects;
+    if (!proj) continue;
+    const key = proj.name as string;
+    if (!projectMap[key]) projectMap[key] = { name: proj.name, color: proj.color ?? '#10b981', minutes: 0 };
+    projectMap[key].minutes += entry.duration_minutes ?? 0;
+  }
+  const userProjectBreakdown = Object.values(projectMap).sort((a, b) => b.minutes - a.minutes);
+
+  // Team member hours — balance per person
+  const teamMemberHours = (allProfiles ?? []).map(p => {
+    const tracked = (allTrackingData ?? [])
+      .filter(e => e.user_id === p.id)
+      .reduce((s, e) => s + (e.duration_minutes ?? 0), 0);
+    const deducted = (allDeductData ?? [])
+      .filter(e => e.user_id === p.id)
+      .reduce((s, e) => s + Number(e.stunden) * 60, 0);
+    return { id: p.id, name: p.full_name ?? '?', minutes: Math.max(tracked - deducted, 0) };
+  }).sort((a, b) => b.minutes - a.minutes);
 
   // Finanzen
   const byMonth: Record<string, { einnahmen: number; ausgaben: number }> = {};
@@ -68,6 +106,8 @@ export default async function DashboardPage() {
   const widgetData: WidgetData = {
     verfuegbarMinutes,
     totalMinutes,
+    userProjectBreakdown,
+    teamMemberHours,
     offeneAufgaben: (meetingTasksCount ?? 0) + (projectTasksCount ?? 0),
     projektCount: activeProjects?.length ?? 0,
     chartData,
