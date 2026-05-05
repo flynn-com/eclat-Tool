@@ -49,6 +49,7 @@ export async function removeAvatar(userId: string) {
     `${userId}/avatar.png`,
     `${userId}/avatar.webp`,
     `${userId}/avatar.gif`,
+    `${userId}/avatar.avif`,
   ]);
 
   const { error } = await supabase

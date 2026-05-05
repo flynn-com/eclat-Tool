@@ -104,7 +104,7 @@ function AvatarCard({ profile }: { profile: Profile }) {
         <input
           ref={fileRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
           className="hidden"
           onChange={handleFileChange}
         />
