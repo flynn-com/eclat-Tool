@@ -44,12 +44,19 @@ interface EquipmentPaket {
   items: EquipmentPaketItem[];
 }
 
+interface Kunde {
+  id: string;
+  firma: string;
+  ansprechpartner: string | null;
+}
+
 interface Props {
   pakete: PaketTemplate[];
   equipmentItems: EquipmentItem[];
   equipmentPakete: EquipmentPaket[];
   settings: MonatsabrechnungSettings;
   personas: Persona[];
+  kunden: Kunde[];
 }
 
 // A selected paket group in the kalkulation
@@ -123,9 +130,11 @@ function PersonaBadge({ persona }: { persona: Persona | undefined }) {
   );
 }
 
-export function ProjektKalkulator({ pakete, equipmentItems, equipmentPakete, settings, personas }: Props) {
+export function ProjektKalkulator({ pakete, equipmentItems, equipmentPakete, settings, personas, kunden }: Props) {
   const [projektname, setProjektname] = useState('');
   const [kunde, setKunde] = useState('');
+  const [kundeSearch, setKundeSearch] = useState('');
+  const [showKundeDropdown, setShowKundeDropdown] = useState(false);
   const [selectedPakete, setSelectedPakete] = useState<SelectedPaket[]>([]);
   const [eigenePsn, setEigenePsn] = useState<EigenePosition[]>([]);
   const [personaDirect, setPersonaDirect] = useState<PersonaDirect[]>([]);
@@ -454,14 +463,45 @@ export function ProjektKalkulator({ pakete, equipmentItems, equipmentPakete, set
               onChange={(e) => setProjektname(e.target.value)}
             />
           </div>
-          <div>
+          <div className="relative">
             <label className="block text-xs mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Kunde</label>
             <input
               className="neu-input w-full"
-              placeholder="Kundenname"
+              placeholder="Kundenname oder suchen…"
               value={kunde}
-              onChange={(e) => setKunde(e.target.value)}
+              onChange={(e) => { setKunde(e.target.value); setKundeSearch(e.target.value); setShowKundeDropdown(true); }}
+              onFocus={() => { setKundeSearch(kunde); setShowKundeDropdown(true); }}
+              onBlur={() => setTimeout(() => setShowKundeDropdown(false), 150)}
+              autoComplete="off"
             />
+            {showKundeDropdown && (() => {
+              const q = kundeSearch.toLowerCase();
+              const filtered = kunden.filter(k => k.firma.toLowerCase().includes(q) || (k.ansprechpartner ?? '').toLowerCase().includes(q));
+              if (filtered.length === 0) return null;
+              return (
+                <div
+                  className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl shadow-lg overflow-hidden"
+                  style={{ background: 'var(--neu-surface)', border: '1px solid var(--neu-border)' }}
+                >
+                  {filtered.slice(0, 8).map(k => (
+                    <button
+                      key={k.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm transition-opacity hover:opacity-70"
+                      style={{ color: 'var(--neu-text)' }}
+                      onMouseDown={() => { setKunde(k.firma); setShowKundeDropdown(false); }}
+                    >
+                      <span className="font-medium">{k.firma}</span>
+                      {k.ansprechpartner && (
+                        <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                          {k.ansprechpartner}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

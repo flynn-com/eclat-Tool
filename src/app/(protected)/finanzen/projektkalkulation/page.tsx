@@ -14,6 +14,7 @@ export default async function ProjektkalkulationPage() {
     { data: personasRaw },
     maRaw,
     { data: eqPaketeRaw },
+    { data: kundenRaw },
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase
@@ -35,6 +36,10 @@ export default async function ProjektkalkulationPage() {
       .from('kalkulation_equipment_pakete')
       .select('id, name, kalkulation_equipment_paket_items(equipment_item_id, tage, equipment_items(id, name, day_rate))')
       .order('created_at', { ascending: true }),
+    supabase
+      .from('kunden')
+      .select('id, firma, ansprechpartner')
+      .order('firma', { ascending: true }),
   ]);
 
   // Fetch profile name for PDF
@@ -134,6 +139,11 @@ export default async function ProjektkalkulationPage() {
         equipmentPakete={equipmentPakete}
         settings={settings}
         personas={personas}
+        kunden={(kundenRaw ?? []).map((k) => ({
+          id: k.id as string,
+          firma: k.firma as string,
+          ansprechpartner: k.ansprechpartner as string | null,
+        }))}
       />
     </div>
   );
