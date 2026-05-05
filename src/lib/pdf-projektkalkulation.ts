@@ -112,7 +112,7 @@ export async function generateProjektkalkulationPdf(data: PdfKalkData): Promise<
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(B.r, B.g, B.b);
-    doc.text('Leistungspositionen', ml, y);
+    doc.text('Dienstleistung', ml, y);
     y += 5;
 
     const posBody = data.positionen.map((p) => [

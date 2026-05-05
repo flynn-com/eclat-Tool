@@ -504,7 +504,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, equipmentPakete, set
       <div className="neu-raised p-5">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="text-base font-semibold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>
-            Leistungspositionen
+            Dienstleistung
           </h2>
           <div className="relative">
             <button
@@ -512,7 +512,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, equipmentPakete, set
               onClick={() => setShowPaketDropdown((v) => !v)}
             >
               <Plus className="h-4 w-4" />
-              Paket hinzufügen
+              Leistung hinzufügen
               <ChevronDown className="h-3.5 w-3.5" />
             </button>
             {showPaketDropdown && (
@@ -522,7 +522,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, equipmentPakete, set
               >
                 {pakete.length === 0 ? (
                   <div className="px-4 py-3 text-sm" style={{ color: 'var(--neu-text-secondary)' }}>
-                    Keine Pakete vorhanden
+                    Keine Leistungen vorhanden
                   </div>
                 ) : (
                   pakete.map((p) => (
