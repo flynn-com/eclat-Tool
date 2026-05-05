@@ -1,9 +1,8 @@
 import Link from 'next/link';
-import { Calculator, Archive, Clock, TrendingUp, TrendingDown, Minus, FileText, Package } from 'lucide-react';
+import { Calculator, Archive, Clock, TrendingUp, TrendingDown, Minus, FileText, Package, Repeat } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { FinanzChart } from '@/components/finanzen/finanz-chart';
 import { WidgetPinButton } from '@/components/dashboard/widget-pin-button';
-import { RecurringExpensesManager } from '@/components/finanzen/recurring-expenses-manager';
 
 const MONAT_LABELS: Record<string, string> = {
   '01': 'Jan', '02': 'Feb', '03': 'Mär', '04': 'Apr',
@@ -25,7 +24,7 @@ export default async function FinanzenPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [{ data: abrechnungen }, { data: widgetRows }, { data: recurringExpenses }] = await Promise.all([
+  const [{ data: abrechnungen }, { data: widgetRows }] = await Promise.all([
     supabase
       .from('gewinnverteilungen')
       .select('monat, einnahmen, ausgaben, gesamtgewinn')
@@ -35,7 +34,6 @@ export default async function FinanzenPage() {
       .from('user_widgets')
       .select('widget_id')
       .eq('user_id', user!.id),
-    supabase.from('recurring_expenses').select('id, name, betrag, kategorie, aktiv').order('created_at'),
   ]);
 
   // Aggregate by month (sum if multiple entries per month)
@@ -107,19 +105,6 @@ export default async function FinanzenPage() {
         <FinanzChart data={chartData} />
       </div>
 
-      {/* Wiederkehrende Ausgaben */}
-      <div className="mb-6">
-        <RecurringExpensesManager
-          initialExpenses={(recurringExpenses ?? []).map(e => ({
-            id: e.id,
-            name: e.name,
-            betrag: Number(e.betrag),
-            kategorie: e.kategorie,
-            aktiv: e.aktiv,
-          }))}
-        />
-      </div>
-
       {/* Navigation */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Link href="/finanzen/monatsabrechnung" className="neu-raised p-6 block transition-all hover:opacity-90">
@@ -146,6 +131,11 @@ export default async function FinanzenPage() {
           <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Package className="h-6 w-6" /></div>
           <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Leistungspakete</h3>
           <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Pakete für Kalkulationen verwalten</p>
+        </Link>
+        <Link href="/finanzen/wiederkehrende-ausgaben" className="neu-raised p-6 block transition-all hover:opacity-90">
+          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Repeat className="h-6 w-6" /></div>
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Wiederkehrende Ausgaben</h3>
+          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Monatliche Fixkosten verwalten</p>
         </Link>
       </div>
     </div>
