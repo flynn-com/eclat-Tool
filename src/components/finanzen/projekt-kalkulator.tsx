@@ -31,9 +31,23 @@ interface EquipmentItem {
   day_rate: number | null;
 }
 
+interface EquipmentPaketItem {
+  equipment_item_id: string;
+  name: string;
+  day_rate: number | null;
+  tage: number;
+}
+
+interface EquipmentPaket {
+  id: string;
+  name: string;
+  items: EquipmentPaketItem[];
+}
+
 interface Props {
   pakete: PaketTemplate[];
   equipmentItems: EquipmentItem[];
+  equipmentPakete: EquipmentPaket[];
   settings: MonatsabrechnungSettings;
   personas: Persona[];
 }
@@ -109,7 +123,7 @@ function PersonaBadge({ persona }: { persona: Persona | undefined }) {
   );
 }
 
-export function ProjektKalkulator({ pakete, equipmentItems, settings, personas }: Props) {
+export function ProjektKalkulator({ pakete, equipmentItems, equipmentPakete, settings, personas }: Props) {
   const [projektname, setProjektname] = useState('');
   const [kunde, setKunde] = useState('');
   const [selectedPakete, setSelectedPakete] = useState<SelectedPaket[]>([]);
@@ -120,6 +134,7 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings, personas }
   // UI state
   const [showPaketDropdown, setShowPaketDropdown] = useState(false);
   const [showEquipmentPicker, setShowEquipmentPicker] = useState(false);
+  const [equipmentPickerTab, setEquipmentPickerTab] = useState<'einzeln' | 'pakete'>('einzeln');
   const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
   const [equipmentSearch, setEquipmentSearch] = useState('');
   const [isPdfLoading, setIsPdfLoading] = useState(false);
@@ -317,6 +332,18 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings, personas }
         tage: '1',
       },
     ]);
+    setShowEquipmentPicker(false);
+    setEquipmentSearch('');
+  }
+
+  function addEquipmentPaket(paket: EquipmentPaket) {
+    const rows: EquipmentRow[] = paket.items.map((item) => ({
+      id: `eq-${Date.now()}-${item.equipment_item_id}`,
+      name: item.name,
+      tagessatz: item.day_rate !== null ? String(item.day_rate) : '',
+      tage: String(item.tage),
+    }));
+    setEquipment((prev) => [...prev, ...rows]);
     setShowEquipmentPicker(false);
     setEquipmentSearch('');
   }
@@ -737,42 +764,102 @@ export function ProjektKalkulator({ pakete, equipmentItems, settings, personas }
                 className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-lg w-72 overflow-hidden"
                 style={{ background: 'var(--neu-surface)', border: '1px solid var(--neu-border)' }}
               >
-                <div className="p-2 border-b" style={{ borderColor: 'var(--neu-border)' }}>
-                  <div className="flex items-center gap-2 neu-pressed rounded-xl px-3 py-1.5">
-                    <Search className="h-3.5 w-3.5" style={{ color: 'var(--neu-text-secondary)' }} />
-                    <input
-                      className="bg-transparent text-sm outline-none flex-1"
-                      style={{ color: 'var(--neu-text)' }}
-                      placeholder="Suchen..."
-                      value={equipmentSearch}
-                      onChange={(e) => setEquipmentSearch(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
+                {/* Tabs */}
+                <div className="flex items-center gap-1 p-2 border-b" style={{ borderColor: 'var(--neu-border)' }}>
+                  <button
+                    className="flex-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
+                    style={equipmentPickerTab === 'einzeln'
+                      ? { background: 'var(--neu-accent)', color: '#fff' }
+                      : { background: 'transparent', color: 'var(--neu-text-secondary)' }}
+                    onClick={() => setEquipmentPickerTab('einzeln')}
+                  >
+                    Einzeln
+                  </button>
+                  <button
+                    className="flex-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
+                    style={equipmentPickerTab === 'pakete'
+                      ? { background: 'var(--neu-accent)', color: '#fff' }
+                      : { background: 'transparent', color: 'var(--neu-text-secondary)' }}
+                    onClick={() => setEquipmentPickerTab('pakete')}
+                  >
+                    Pakete
+                  </button>
                 </div>
-                <div className="max-h-56 overflow-y-auto">
-                  {filteredEquipment.length === 0 ? (
-                    <div className="px-4 py-3 text-sm" style={{ color: 'var(--neu-text-secondary)' }}>
-                      Kein Equipment gefunden
+
+                {equipmentPickerTab === 'einzeln' && (
+                  <>
+                    <div className="p-2 border-b" style={{ borderColor: 'var(--neu-border)' }}>
+                      <div className="flex items-center gap-2 neu-pressed rounded-xl px-3 py-1.5">
+                        <Search className="h-3.5 w-3.5" style={{ color: 'var(--neu-text-secondary)' }} />
+                        <input
+                          className="bg-transparent text-sm outline-none flex-1"
+                          style={{ color: 'var(--neu-text)' }}
+                          placeholder="Suchen..."
+                          value={equipmentSearch}
+                          onChange={(e) => setEquipmentSearch(e.target.value)}
+                          autoFocus
+                        />
+                      </div>
                     </div>
-                  ) : (
-                    filteredEquipment.map((item) => (
-                      <button
-                        key={item.id}
-                        className="w-full text-left px-4 py-2.5 text-sm transition-opacity hover:opacity-70"
-                        style={{ color: 'var(--neu-text)' }}
-                        onClick={() => addEquipmentItem(item)}
-                      >
-                        <span className="font-medium">{item.name}</span>
-                        {item.day_rate !== null && (
-                          <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
-                            {item.day_rate} €/Tag
-                          </span>
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
+                    <div className="max-h-56 overflow-y-auto">
+                      {filteredEquipment.length === 0 ? (
+                        <div className="px-4 py-3 text-sm" style={{ color: 'var(--neu-text-secondary)' }}>
+                          Kein Equipment gefunden
+                        </div>
+                      ) : (
+                        filteredEquipment.map((item) => (
+                          <button
+                            key={item.id}
+                            className="w-full text-left px-4 py-2.5 text-sm transition-opacity hover:opacity-70"
+                            style={{ color: 'var(--neu-text)' }}
+                            onClick={() => addEquipmentItem(item)}
+                          >
+                            <span className="font-medium">{item.name}</span>
+                            {item.day_rate !== null && (
+                              <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                                {item.day_rate} €/Tag
+                              </span>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {equipmentPickerTab === 'pakete' && (
+                  <div className="max-h-56 overflow-y-auto">
+                    {equipmentPakete.length === 0 ? (
+                      <div className="px-4 py-3 text-sm" style={{ color: 'var(--neu-text-secondary)' }}>
+                        Keine Equipment-Pakete vorhanden
+                      </div>
+                    ) : (
+                      equipmentPakete.map((paket) => (
+                        <div
+                          key={paket.id}
+                          className="flex items-center justify-between px-4 py-2.5 border-b last:border-0"
+                          style={{ borderColor: 'var(--neu-border)' }}
+                        >
+                          <div>
+                            <span className="text-sm font-medium" style={{ color: 'var(--neu-text)' }}>
+                              {paket.name}
+                            </span>
+                            <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                              {paket.items.length} Item{paket.items.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <button
+                            className="neu-btn-primary text-xs px-2 py-1 ml-2"
+                            onClick={() => addEquipmentPaket(paket)}
+                          >
+                            Hinzufügen
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
                 <button
                   className="w-full text-left px-4 py-2 text-xs border-t"
                   style={{ color: 'var(--neu-text-secondary)', borderColor: 'var(--neu-border)' }}

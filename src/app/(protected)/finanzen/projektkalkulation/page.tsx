@@ -13,6 +13,7 @@ export default async function ProjektkalkulationPage() {
     { data: equipmentRaw },
     { data: personasRaw },
     maRaw,
+    { data: eqPaketeRaw },
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase
@@ -30,6 +31,10 @@ export default async function ProjektkalkulationPage() {
       .select('id, name, stundensatz')
       .order('created_at', { ascending: true }),
     loadSettingsServer('monatsabrechnung'),
+    supabase
+      .from('kalkulation_equipment_pakete')
+      .select('id, name, kalkulation_equipment_paket_items(equipment_item_id, tage, equipment_items(id, name, day_rate))')
+      .order('created_at', { ascending: true }),
   ]);
 
   // Fetch profile name for PDF
@@ -75,6 +80,28 @@ export default async function ProjektkalkulationPage() {
     stundensatz: Number(p.stundensatz),
   }));
 
+  const equipmentPakete = (eqPaketeRaw ?? []).map((p) => {
+    type RawItem = { equipment_item_id: unknown; tage: unknown; equipment_items: unknown };
+    type RawEqItem = { id: unknown; name: unknown; day_rate: unknown };
+    return {
+      id: p.id as string,
+      name: p.name as string,
+      items: ((p.kalkulation_equipment_paket_items ?? []) as RawItem[])
+        .map((i) => {
+          const eqArr = i.equipment_items as RawEqItem[] | null;
+          const eq = Array.isArray(eqArr) && eqArr.length > 0 ? eqArr[0] : null;
+          if (!eq) return null;
+          return {
+            equipment_item_id: i.equipment_item_id as string,
+            name: eq.name as string,
+            day_rate: eq.day_rate !== null ? Number(eq.day_rate) : null,
+            tage: Number(i.tage),
+          };
+        })
+        .filter((i): i is NonNullable<typeof i> => i !== null),
+    };
+  });
+
   return (
     <div>
       <div className="mb-6">
@@ -104,6 +131,7 @@ export default async function ProjektkalkulationPage() {
       <ProjektKalkulator
         pakete={pakete}
         equipmentItems={equipmentItems}
+        equipmentPakete={equipmentPakete}
         settings={settings}
         personas={personas}
       />

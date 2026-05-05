@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2, Save, X, Pencil, Users } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Save, X, Pencil, Users, Box } from 'lucide-react';
 import {
   createPaket,
   updatePaket,
@@ -12,6 +12,12 @@ import {
   createPersona,
   updatePersona,
   deletePersona,
+  createEquipmentPaket,
+  updateEquipmentPaket,
+  deleteEquipmentPaket,
+  addEquipmentPaketItem,
+  removeEquipmentPaketItem,
+  updateEquipmentPaketItemTage,
 } from '@/lib/actions/kalkulation';
 
 interface Persona {
@@ -36,9 +42,31 @@ interface Paket {
   positionen: Position[];
 }
 
+interface EquipmentItem {
+  id: string;
+  name: string;
+  day_rate: number | null;
+}
+
+interface EquipmentPaketItem {
+  id: string;
+  equipment_item_id: string;
+  tage: number;
+  equipment_items: EquipmentItem | null;
+}
+
+interface EquipmentPaket {
+  id: string;
+  name: string;
+  beschreibung: string | null;
+  items: EquipmentPaketItem[];
+}
+
 interface Props {
   initialPakete: Paket[];
   initialPersonas: Persona[];
+  initialEquipmentPakete: EquipmentPaket[];
+  allEquipmentItems: EquipmentItem[];
 }
 
 function PersonaBadge({ persona }: { persona: Persona | undefined }) {
@@ -54,11 +82,23 @@ function PersonaBadge({ persona }: { persona: Persona | undefined }) {
   );
 }
 
-export function PaketManager({ initialPakete, initialPersonas }: Props) {
+export function PaketManager({ initialPakete, initialPersonas, initialEquipmentPakete, allEquipmentItems }: Props) {
   const [pakete, setPakete] = useState<Paket[]>(initialPakete);
   const [personas, setPersonas] = useState<Persona[]>(initialPersonas);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
+
+  // ---- Equipment-Pakete state ----
+  const [equipmentPakete, setEquipmentPakete] = useState<EquipmentPaket[]>(initialEquipmentPakete);
+  const [expandedEqIds, setExpandedEqIds] = useState<Set<string>>(new Set());
+  const [showNewEqForm, setShowNewEqForm] = useState(false);
+  const [newEqName, setNewEqName] = useState('');
+  const [newEqBeschreibung, setNewEqBeschreibung] = useState('');
+  const [editingEqPaketId, setEditingEqPaketId] = useState<string | null>(null);
+  const [editEqName, setEditEqName] = useState('');
+  const [editEqBeschreibung, setEditEqBeschreibung] = useState('');
+  const [addItemPaketId, setAddItemPaketId] = useState<string | null>(null);
+  const [addItemSelect, setAddItemSelect] = useState<Record<string, string>>({});
 
   // New paket form
   const [showNewForm, setShowNewForm] = useState(false);
@@ -279,6 +319,106 @@ export function PaketManager({ initialPakete, initialPersonas }: Props) {
     });
   }
 
+  // ---- Equipment-Pakete actions ----
+  function toggleExpandEq(id: string) {
+    setExpandedEqIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleCreateEquipmentPaket() {
+    if (!newEqName.trim()) return;
+    const optimistic: EquipmentPaket = {
+      id: `tmp-eq-${Date.now()}`,
+      name: newEqName.trim(),
+      beschreibung: newEqBeschreibung.trim() || null,
+      items: [],
+    };
+    setEquipmentPakete((prev) => [...prev, optimistic]);
+    setExpandedEqIds((prev) => new Set([...prev, optimistic.id]));
+    setNewEqName('');
+    setNewEqBeschreibung('');
+    setShowNewEqForm(false);
+    startTransition(async () => {
+      await createEquipmentPaket(optimistic.name, newEqBeschreibung);
+    });
+  }
+
+  function startEditEquipmentPaket(p: EquipmentPaket) {
+    setEditingEqPaketId(p.id);
+    setEditEqName(p.name);
+    setEditEqBeschreibung(p.beschreibung ?? '');
+  }
+
+  function handleSaveEquipmentPaket(id: string) {
+    if (!editEqName.trim()) return;
+    setEquipmentPakete((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, name: editEqName.trim(), beschreibung: editEqBeschreibung.trim() || null }
+          : p
+      )
+    );
+    setEditingEqPaketId(null);
+    startTransition(async () => {
+      await updateEquipmentPaket(id, editEqName, editEqBeschreibung);
+    });
+  }
+
+  function handleDeleteEquipmentPaket(id: string) {
+    setEquipmentPakete((prev) => prev.filter((p) => p.id !== id));
+    startTransition(async () => {
+      await deleteEquipmentPaket(id);
+    });
+  }
+
+  function handleAddEquipmentPaketItem(paketId: string) {
+    const equipmentItemId = addItemSelect[paketId];
+    if (!equipmentItemId) return;
+    const eqItem = allEquipmentItems.find((e) => e.id === equipmentItemId);
+    if (!eqItem) return;
+    const optimistic: EquipmentPaketItem = {
+      id: `tmp-eqi-${Date.now()}`,
+      equipment_item_id: equipmentItemId,
+      tage: 1,
+      equipment_items: eqItem,
+    };
+    setEquipmentPakete((prev) =>
+      prev.map((p) => (p.id === paketId ? { ...p, items: [...p.items, optimistic] } : p))
+    );
+    setAddItemSelect((prev) => ({ ...prev, [paketId]: '' }));
+    startTransition(async () => {
+      await addEquipmentPaketItem(paketId, equipmentItemId, 1);
+    });
+  }
+
+  function handleRemoveEquipmentPaketItem(paketId: string, itemId: string) {
+    setEquipmentPakete((prev) =>
+      prev.map((p) =>
+        p.id === paketId ? { ...p, items: p.items.filter((i) => i.id !== itemId) } : p
+      )
+    );
+    startTransition(async () => {
+      await removeEquipmentPaketItem(itemId);
+    });
+  }
+
+  function handleUpdateEqItemTage(paketId: string, itemId: string, tage: number) {
+    setEquipmentPakete((prev) =>
+      prev.map((p) =>
+        p.id === paketId
+          ? { ...p, items: p.items.map((i) => (i.id === itemId ? { ...i, tage } : i)) }
+          : p
+      )
+    );
+    startTransition(async () => {
+      await updateEquipmentPaketItemTage(itemId, tage);
+    });
+  }
+
   return (
     <div className="space-y-6">
       {/* ===== Persona Manager ===== */}
@@ -425,6 +565,233 @@ export function PaketManager({ initialPakete, initialPersonas }: Props) {
                   setNewPersonaName('');
                   setNewPersonaStundensatz('');
                   setNewPersonaFarbe('#10b981');
+                }}
+              >
+                <X className="h-3.5 w-3.5" /> Abbrechen
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ===== Equipment-Pakete ===== */}
+      <div className="neu-raised p-5">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Box className="h-5 w-5" style={{ color: 'var(--neu-accent)' }} />
+            <h2 className="text-base font-semibold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>
+              Equipment-Pakete
+            </h2>
+          </div>
+          {!showNewEqForm && (
+            <button
+              className="neu-btn flex items-center gap-1 text-sm px-3 py-1.5"
+              onClick={() => setShowNewEqForm(true)}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Neues Paket
+            </button>
+          )}
+        </div>
+
+        {/* Equipment-Pakete list */}
+        <div className="space-y-2">
+          {equipmentPakete.length === 0 && !showNewEqForm && (
+            <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>
+              Noch keine Equipment-Pakete. Erstelle Pakete um Equipment-Gruppen wiederzuverwenden.
+            </p>
+          )}
+
+          {equipmentPakete.map((eqPaket) => {
+            const isExpanded = expandedEqIds.has(eqPaket.id);
+            const isEditing = editingEqPaketId === eqPaket.id;
+            const usedItemIds = new Set(eqPaket.items.map((i) => i.equipment_item_id));
+            const availableItems = allEquipmentItems.filter((e) => !usedItemIds.has(e.id));
+
+            return (
+              <div key={eqPaket.id} className="neu-raised overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center gap-2 px-4 py-3">
+                  <button
+                    onClick={() => toggleExpandEq(eqPaket.id)}
+                    style={{ color: 'var(--neu-text-secondary)' }}
+                    className="flex-shrink-0"
+                  >
+                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </button>
+
+                  {isEditing ? (
+                    <div className="flex-1 flex items-center gap-2 flex-wrap">
+                      <input
+                        className="neu-input text-sm flex-1 min-w-[140px]"
+                        value={editEqName}
+                        onChange={(e) => setEditEqName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSaveEquipmentPaket(eqPaket.id)}
+                        autoFocus
+                      />
+                      <input
+                        className="neu-input text-sm flex-1 min-w-[140px]"
+                        placeholder="Beschreibung"
+                        value={editEqBeschreibung}
+                        onChange={(e) => setEditEqBeschreibung(e.target.value)}
+                      />
+                      <button
+                        className="neu-btn-primary flex items-center gap-1 text-xs px-2 py-1"
+                        onClick={() => handleSaveEquipmentPaket(eqPaket.id)}
+                      >
+                        <Save className="h-3 w-3" /> Sichern
+                      </button>
+                      <button
+                        className="neu-btn flex items-center gap-1 text-xs px-2 py-1"
+                        onClick={() => setEditingEqPaketId(null)}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button className="flex-1 text-left" onClick={() => toggleExpandEq(eqPaket.id)}>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--neu-text)' }}>
+                          {eqPaket.name}
+                        </span>
+                        {eqPaket.beschreibung && (
+                          <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                            — {eqPaket.beschreibung}
+                          </span>
+                        )}
+                        <span className="ml-2 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                          ({eqPaket.items.length} Item{eqPaket.items.length !== 1 ? 's' : ''})
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => startEditEquipmentPaket(eqPaket)}
+                        className="p-1 rounded transition-opacity hover:opacity-70"
+                        style={{ color: 'var(--neu-text-secondary)' }}
+                        title="Bearbeiten"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEquipmentPaket(eqPaket.id)}
+                        className="p-1 rounded transition-opacity hover:opacity-70"
+                        style={{ color: '#ef4444' }}
+                        title="Löschen"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Items */}
+                {isExpanded && (
+                  <div className="border-t px-4 py-3 space-y-2" style={{ borderColor: 'var(--neu-border)' }}>
+                    {eqPaket.items.length === 0 && (
+                      <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                        Noch keine Items.
+                      </p>
+                    )}
+
+                    {eqPaket.items.map((item) => {
+                      const eq = item.equipment_items;
+                      return (
+                        <div key={item.id} className="neu-pressed px-3 py-2 rounded-xl flex items-center gap-2 flex-wrap">
+                          <span className="flex-1 text-sm" style={{ color: 'var(--neu-text)' }}>
+                            {eq?.name ?? '—'}
+                          </span>
+                          {eq?.day_rate != null && (
+                            <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                              {eq.day_rate} €/Tag
+                            </span>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <label className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Tage</label>
+                            <input
+                              className="neu-input text-sm w-16"
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              value={item.tage}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value.replace(',', '.'));
+                                if (!isNaN(v)) handleUpdateEqItemTage(eqPaket.id, item.id, v);
+                              }}
+                            />
+                          </div>
+                          <button
+                            onClick={() => handleRemoveEquipmentPaketItem(eqPaket.id, item.id)}
+                            className="p-1 rounded hover:opacity-70"
+                            style={{ color: '#ef4444' }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {/* Add item row */}
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      <select
+                        className="neu-input text-sm flex-1 min-w-[160px]"
+                        value={addItemSelect[eqPaket.id] ?? ''}
+                        onChange={(e) =>
+                          setAddItemSelect((prev) => ({ ...prev, [eqPaket.id]: e.target.value }))
+                        }
+                      >
+                        <option value="">— Item wählen</option>
+                        {availableItems.map((e) => (
+                          <option key={e.id} value={e.id}>
+                            {e.name}{e.day_rate != null ? ` (${e.day_rate} €/Tag)` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        className="neu-btn flex items-center gap-1 text-xs px-3 py-1.5"
+                        onClick={() => handleAddEquipmentPaketItem(eqPaket.id)}
+                        disabled={!addItemSelect[eqPaket.id]}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Item hinzufügen
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* New Equipment-Paket form */}
+        {showNewEqForm && (
+          <div className="neu-pressed px-3 py-3 rounded-xl mt-2 space-y-2">
+            <p className="text-xs font-semibold" style={{ color: 'var(--neu-text)' }}>Neues Equipment-Paket</p>
+            <input
+              className="neu-input w-full text-sm"
+              placeholder="Name des Pakets"
+              value={newEqName}
+              onChange={(e) => setNewEqName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateEquipmentPaket()}
+              autoFocus
+            />
+            <input
+              className="neu-input w-full text-sm"
+              placeholder="Beschreibung (optional)"
+              value={newEqBeschreibung}
+              onChange={(e) => setNewEqBeschreibung(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <button
+                className="neu-btn-primary flex items-center gap-1 text-sm px-3 py-1.5"
+                onClick={handleCreateEquipmentPaket}
+              >
+                <Save className="h-3.5 w-3.5" /> Speichern
+              </button>
+              <button
+                className="neu-btn flex items-center gap-1 text-sm px-3 py-1.5"
+                onClick={() => {
+                  setShowNewEqForm(false);
+                  setNewEqName('');
+                  setNewEqBeschreibung('');
                 }}
               >
                 <X className="h-3.5 w-3.5" /> Abbrechen
