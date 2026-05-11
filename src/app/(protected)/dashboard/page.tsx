@@ -60,8 +60,8 @@ export default async function DashboardPage() {
   ]);
 
   const isAdmin = profile?.role === 'admin';
-  const canEdit = isAdmin;
-  const isNewUser = isAdmin && (widgetRows ?? []).length === 0;
+  const canEdit = true;
+  const isNewUser = (widgetRows ?? []).length === 0;
 
   // Zeiterfassung – current user
   const totalMinutes = (trackingData ?? []).reduce((s, e) => s + (e.duration_minutes ?? 0), 0);
@@ -156,19 +156,12 @@ export default async function DashboardPage() {
     gesamtAusgaben,
   };
 
-  // Admins: persönliche Config aus DB; Employees: feste Standardansicht
-  const { DEFAULT_WIDGETS_EMPLOYEE } = await import('@/lib/widget-registry');
-  const widgets: UserWidget[] = canEdit
-    ? (widgetRows ?? []).map(r => ({
-        widget_key: r.widget_key,
-        position: r.position,
-        col_span: r.col_span,
-      }))
-    : DEFAULT_WIDGETS_EMPLOYEE.map(d => ({
-        widget_key: d.widget_key,
-        position: d.position,
-        col_span: d.col_span,
-      }));
+  // Alle User: persönliche Config aus DB
+  const widgets: UserWidget[] = (widgetRows ?? []).map(r => ({
+    widget_key: r.widget_key,
+    position: r.position,
+    col_span: r.col_span,
+  }));
 
   return (
     <div>
