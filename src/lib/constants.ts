@@ -30,6 +30,15 @@ export const PHASE_COLORS: Record<string, string> = {
   abgeschlossen: '#10B981',
 };
 
+// Automatischer Fortschritt je Phase (in %)
+export const PHASE_PROGRESS: Record<string, number> = {
+  planung: 20,
+  produktion: 40,
+  postproduktion: 60,
+  review: 80,
+  abgeschlossen: 100,
+};
+
 export const CAMPAIGN_TYPE_LABELS: Record<string, string> = {
   film: 'Film',
   foto: 'Foto',

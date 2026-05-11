@@ -44,6 +44,9 @@ export async function updateProject(projectId: string, formData: FormData) {
   const name = formData.get('name') as string;
   if (!name?.trim()) return { error: 'Projektname ist erforderlich' };
 
+  const progressRaw = formData.get('progress');
+  const phaseRaw = (formData.get('phase') as string) || null;
+
   const { error } = await supabase.from('projects').update({
     name: name.trim(),
     description: (formData.get('description') as string) || null,
@@ -52,6 +55,8 @@ export async function updateProject(projectId: string, formData: FormData) {
     campaign_type: (formData.get('campaign_type') as string) || null,
     budget: formData.get('budget') ? parseFloat(formData.get('budget') as string) : null,
     deadline: (formData.get('deadline') as string) || null,
+    ...(phaseRaw && { phase: phaseRaw }),
+    ...(progressRaw !== null && progressRaw !== '' && { progress: parseInt(progressRaw as string, 10) }),
   }).eq('id', projectId);
 
   if (error) return { error: error.message };

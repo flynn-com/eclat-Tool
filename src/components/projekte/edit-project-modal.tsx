@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { updateProject } from '@/app/(protected)/projekte/actions';
-import { CAMPAIGN_TYPE_LABELS } from '@/lib/constants';
+import { CAMPAIGN_TYPE_LABELS, PHASE_LABELS, PHASE_PROGRESS } from '@/lib/constants';
 import { Project } from '@/lib/types';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
@@ -16,9 +16,16 @@ interface Props {
 
 export function EditProjectModal({ project, onClose }: Props) {
   const [color, setColor] = useState(project.color);
+  const [phase, setPhase] = useState(project.phase);
+  const [progress, setProgress] = useState(project.progress);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  function handlePhaseChange(newPhase: string) {
+    setPhase(newPhase as Project['phase']);
+    setProgress(PHASE_PROGRESS[newPhase] ?? progress);
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -26,6 +33,8 @@ export function EditProjectModal({ project, onClose }: Props) {
     setError(null);
     const formData = new FormData(e.currentTarget);
     formData.set('color', color);
+    formData.set('phase', phase);
+    formData.set('progress', String(progress));
 
     const result = await updateProject(project.id, formData);
     if (result.error) {
@@ -58,6 +67,38 @@ export function EditProjectModal({ project, onClose }: Props) {
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Kunde</label>
               <input name="client_name" type="text" defaultValue={project.client_name ?? ''} className="neu-input w-full text-sm" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--neu-text-secondary)' }}>Phase</label>
+              <select
+                value={phase}
+                onChange={(e) => handlePhaseChange(e.target.value)}
+                className="neu-input w-full text-sm"
+              >
+                {Object.entries(PHASE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--neu-text-secondary)' }}>
+                Fortschritt: <span style={{ color: 'var(--neu-accent)' }}>{progress}%</span>
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={progress}
+                onChange={(e) => setProgress(Number(e.target.value))}
+                className="w-full accent-emerald-500"
+              />
+              <div className="flex justify-between text-xs mt-0.5" style={{ color: 'var(--neu-text-secondary)' }}>
+                <span>0%</span><span>50%</span><span>100%</span>
+              </div>
             </div>
           </div>
 
