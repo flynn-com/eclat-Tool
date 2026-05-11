@@ -322,12 +322,12 @@ export async function generateProjektabschlussPdf(data: PdfAbschlussData): Promi
     },
     {
       label: `Steuerrücklage (${data.steuerProzent}%)`,
-      detail: '',
+      detail: `von ${eur(data.einnahmen ?? data.zeitKosten)}`,
       value: eur(data.steuerRücklage),
     },
     {
       label: `Investrücklage (${data.investProzent}%)`,
-      detail: '',
+      detail: `von ${eur(data.einnahmen ?? data.zeitKosten)}`,
       value: eur(data.investRücklage),
     },
     {
@@ -492,11 +492,13 @@ export function buildAbschlussData({
   const eqKosten = Math.round(eqRows.reduce((s, e) => s + e.gesamt, 0) * 100) / 100;
 
   // Financial calculations
-  const zeitKosten = Math.round(stundenGesamt * settings.stundenSatz * 100) / 100;
-  const steuerRücklage = Math.round(zeitKosten * (settings.steuerProzent / 100) * 100) / 100;
-  const investRücklage = Math.round(zeitKosten * (settings.investProzent / 100) * 100) / 100;
-  const gesamtKosten = Math.round((zeitKosten + steuerRücklage + investRücklage + eqKosten) * 100) / 100;
   const einnahmen = project.budget ?? null;
+  const zeitKosten = Math.round(stundenGesamt * settings.stundenSatz * 100) / 100;
+  // Steuer-/Investitionsrücklage auf Budget (Einnahmen); Fallback auf Zeitkosten wenn kein Budget hinterlegt
+  const rücklagenBasis = einnahmen ?? zeitKosten;
+  const steuerRücklage = Math.round(rücklagenBasis * (settings.steuerProzent / 100) * 100) / 100;
+  const investRücklage = Math.round(rücklagenBasis * (settings.investProzent / 100) * 100) / 100;
+  const gesamtKosten = Math.round((zeitKosten + steuerRücklage + investRücklage + eqKosten) * 100) / 100;
   const gewinn = einnahmen !== null ? Math.round((einnahmen - gesamtKosten) * 100) / 100 : null;
 
   // Task counts

@@ -269,12 +269,12 @@ export function AbschlussReportViewer({ data }: Props) {
             },
             {
               label: `Steuerrücklage (${data.steuerProzent}%)`,
-              detail: '',
+              detail: `von ${eur(data.einnahmen ?? data.zeitKosten)}`,
               value: eur(data.steuerRücklage),
             },
             {
               label: `Investrücklage (${data.investProzent}%)`,
-              detail: '',
+              detail: `von ${eur(data.einnahmen ?? data.zeitKosten)}`,
               value: eur(data.investRücklage),
             },
             { label: 'Equipmentkosten', detail: '', value: eur(data.eqKosten) },
