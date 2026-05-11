@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Clapperboard, Film } from 'lucide-react';
+import { FileText, Clapperboard, Film, CheckCircle2 } from 'lucide-react';
 
 const TABS = [
   { href: 'vorplanung', label: 'Vorplanung', icon: FileText },
@@ -10,7 +10,7 @@ const TABS = [
   { href: 'postproduktion', label: 'Post-Produktion', icon: Film },
 ];
 
-export function ProjectPhaseTabs({ projectId }: { projectId: string }) {
+export function ProjectPhaseTabs({ projectId, phase }: { projectId: string; phase: string }) {
   const pathname = usePathname();
 
   return (
@@ -33,6 +33,23 @@ export function ProjectPhaseTabs({ projectId }: { projectId: string }) {
           </Link>
         );
       })}
+      {phase === 'abgeschlossen' && (
+        <Link
+          href={`/projekte/${projectId}/abschluss`}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            pathname === `/projekte/${projectId}/abschluss` ? 'neu-pressed' : 'neu-raised-sm'
+          }`}
+          style={{
+            color:
+              pathname === `/projekte/${projectId}/abschluss`
+                ? 'var(--neu-accent)'
+                : 'var(--neu-accent-mid)',
+          }}
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          Abschluss
+        </Link>
+      )}
     </div>
   );
 }

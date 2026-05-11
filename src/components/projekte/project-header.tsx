@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { PhaseBadge } from './phase-badge';
 import { ProgressBar } from './progress-bar';
 import { createClient } from '@/lib/supabase/client';
 import { Project, ProjectPhase } from '@/lib/types';
 import { PHASE_LABELS, CAMPAIGN_TYPE_LABELS } from '@/lib/constants';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, FileText } from 'lucide-react';
 
 const PHASE_FLOW: ProjectPhase[] = ['planung', 'produktion', 'postproduktion', 'review', 'abgeschlossen'];
 
@@ -22,7 +23,10 @@ export function ProjectHeader({ project }: { project: Project }) {
     if (idx >= PHASE_FLOW.length - 1) return;
     const next = PHASE_FLOW[idx + 1];
     setIsSaving(true);
-    await supabase.from('projects').update({ phase: next }).eq('id', project.id);
+    await supabase.from('projects').update({
+      phase: next,
+      ...(next === 'abgeschlossen' && { completed_at: new Date().toISOString() }),
+    }).eq('id', project.id);
     setIsSaving(false);
     router.refresh();
   };
@@ -57,11 +61,20 @@ export function ProjectHeader({ project }: { project: Project }) {
         </div>
         <div className="flex items-center gap-3">
           <PhaseBadge phase={project.phase} />
-          {project.phase !== 'abgeschlossen' && (
+          {project.phase !== 'abgeschlossen' ? (
             <button onClick={advancePhase} disabled={isSaving} className="neu-btn flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ color: 'var(--neu-accent)' }}>
               {PHASE_LABELS[PHASE_FLOW[PHASE_FLOW.indexOf(project.phase) + 1]] ?? 'Weiter'}
               <ChevronRight className="h-3 w-3" />
             </button>
+          ) : (
+            <Link
+              href={`/projekte/${project.id}/abschluss`}
+              className="neu-btn flex items-center gap-1 px-3 py-1.5 text-xs font-medium"
+              style={{ color: 'var(--neu-accent)' }}
+            >
+              <FileText className="h-3 w-3" />
+              Abschlussbericht
+            </Link>
           )}
         </div>
       </div>

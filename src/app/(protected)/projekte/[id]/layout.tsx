@@ -29,7 +29,7 @@ export default async function ProjectDetailLayout({
         <ArrowLeft className="h-4 w-4" /> Alle Projekte
       </Link>
       <ProjectHeader project={project} />
-      <ProjectPhaseTabs projectId={id} />
+      <ProjectPhaseTabs projectId={id} phase={project.phase} />
       {children}
     </div>
   );

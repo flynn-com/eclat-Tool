@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MoreVertical, Pencil, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, Archive, ArchiveRestore, Trash2, FileText } from 'lucide-react';
 import { archiveProject, unarchiveProject, deleteProject } from '@/app/(protected)/projekte/actions';
 import { PhaseBadge } from './phase-badge';
 import { ProgressBar } from './progress-bar';
@@ -56,6 +56,16 @@ export function ProjectCard({ project, onEdit }: Props) {
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
             <div className="absolute right-0 top-10 z-20 neu-raised py-2 min-w-[180px]" style={{ background: 'var(--neu-bg)' }}>
+              {project.phase === 'abgeschlossen' && (
+                <Link
+                  href={`/projekte/${project.id}/abschluss`}
+                  onClick={() => setMenuOpen(false)}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:opacity-70"
+                  style={{ color: 'var(--neu-accent)' }}
+                >
+                  <FileText className="h-4 w-4" /> Abschlussbericht
+                </Link>
+              )}
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen(false); onEdit(project); }}
                 className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:opacity-70 text-left"

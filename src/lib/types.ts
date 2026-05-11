@@ -56,6 +56,7 @@ export interface Project {
   progress: number;
   briefing_description: string | null;
   kunde_id: string | null;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 }

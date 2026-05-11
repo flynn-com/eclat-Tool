@@ -57,6 +57,8 @@ export async function updateProject(projectId: string, formData: FormData) {
     deadline: (formData.get('deadline') as string) || null,
     ...(phaseRaw && { phase: phaseRaw }),
     ...(progressRaw !== null && progressRaw !== '' && { progress: parseInt(progressRaw as string, 10) }),
+    ...(phaseRaw === 'abgeschlossen' && { completed_at: new Date().toISOString() }),
+    ...(phaseRaw && phaseRaw !== 'abgeschlossen' && { completed_at: null }),
   }).eq('id', projectId);
 
   if (error) return { error: error.message };
