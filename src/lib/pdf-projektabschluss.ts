@@ -21,6 +21,13 @@ export interface AbschlussEquipment {
   gesamt: number;
 }
 
+export interface AbschlussProjektAusgabe {
+  bezeichnung: string;
+  betrag: number;
+  kategorie: string | null;
+  datum: string;
+}
+
 export interface PdfAbschlussData {
   // Projekt-Eckdaten
   projektname: string;
@@ -49,6 +56,10 @@ export interface PdfAbschlussData {
 
   // Equipment
   equipment: AbschlussEquipment[];
+
+  // Projektausgaben
+  projektAusgaben: AbschlussProjektAusgabe[];
+  projektAusgabenGesamt: number;
 
   // Finanzen
   stundenSatz: number;
@@ -310,6 +321,45 @@ export async function generateProjektabschlussPdf(data: PdfAbschlussData): Promi
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
   }
 
+  // ---- PROJEKTAUSGABEN ----
+  if (data.projektAusgaben.length > 0) {
+    y = checkPage(doc, y, ph, 40);
+    y = sectionHeader(doc, y, 'Projektausgaben', ml, mr);
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Bezeichnung', 'Kategorie', 'Datum', 'Betrag']],
+      body: [
+        ...data.projektAusgaben.map((e) => [
+          e.bezeichnung,
+          e.kategorie || '—',
+          e.datum,
+          eur(e.betrag),
+        ]),
+        ['Gesamt', '', '', eur(data.projektAusgabenGesamt)],
+      ],
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2.5, textColor: [60, 60, 60], lineColor: [200, 210, 220], lineWidth: 0.2 },
+      headStyles: { fillColor: [B.r, B.g, B.b], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: LIGHT_BG },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 25 },
+        3: { halign: 'right', cellWidth: 28 },
+      },
+      didParseCell: (hookData) => {
+        if (hookData.row.index === data.projektAusgaben.length) {
+          hookData.cell.styles.fontStyle = 'bold';
+          hookData.cell.styles.textColor = [RED.r, RED.g, RED.b];
+        }
+      },
+      margin: { left: ml },
+    });
+
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  }
+
   // ---- FINANZÜBERSICHT ----
   y = checkPage(doc, y, ph, 90);
   y = sectionHeader(doc, y, 'Finanzübersicht', ml, mr);
@@ -334,6 +384,11 @@ export async function generateProjektabschlussPdf(data: PdfAbschlussData): Promi
       label: 'Equipmentkosten',
       detail: '',
       value: eur(data.eqKosten),
+    },
+    {
+      label: 'Projektausgaben',
+      detail: '',
+      value: eur(data.projektAusgabenGesamt),
     },
   ];
 
@@ -435,6 +490,7 @@ export function buildAbschlussData({
   tasks,
   kundeData,
   settings,
+  projektAusgaben: projektAusgabenRaw = [],
 }: {
   project: {
     id: string;
@@ -454,6 +510,7 @@ export function buildAbschlussData({
   tasks: { status: string }[] | null;
   kundeData: { firma: string; ansprechpartner: string | null; email: string | null; strasse: string | null; plz: string | null; stadt: string | null } | null;
   settings: { stundenSatz: number; steuerProzent: number; investProzent: number };
+  projektAusgaben?: { bezeichnung: string; betrag: number; kategorie: string | null; datum: string }[];
 }): PdfAbschlussData {
   const completedAt = project.completed_at ?? project.updated_at;
   const createdDate = new Date(project.created_at);
@@ -491,6 +548,15 @@ export function buildAbschlussData({
   }));
   const eqKosten = Math.round(eqRows.reduce((s, e) => s + e.gesamt, 0) * 100) / 100;
 
+  // Projektausgaben
+  const projektAusgaben: AbschlussProjektAusgabe[] = (projektAusgabenRaw).map((e) => ({
+    bezeichnung: e.bezeichnung,
+    betrag: Number(e.betrag),
+    kategorie: e.kategorie,
+    datum: fmt(new Date(e.datum)),
+  }));
+  const projektAusgabenGesamt = Math.round(projektAusgaben.reduce((s, e) => s + e.betrag, 0) * 100) / 100;
+
   // Financial calculations
   const einnahmen = project.budget ?? null;
   const zeitKosten = Math.round(stundenGesamt * settings.stundenSatz * 100) / 100;
@@ -498,7 +564,7 @@ export function buildAbschlussData({
   const rücklagenBasis = einnahmen ?? zeitKosten;
   const steuerRücklage = Math.round(rücklagenBasis * (settings.steuerProzent / 100) * 100) / 100;
   const investRücklage = Math.round(rücklagenBasis * (settings.investProzent / 100) * 100) / 100;
-  const gesamtKosten = Math.round((zeitKosten + steuerRücklage + investRücklage + eqKosten) * 100) / 100;
+  const gesamtKosten = Math.round((zeitKosten + steuerRücklage + investRücklage + eqKosten + projektAusgabenGesamt) * 100) / 100;
   const gewinn = einnahmen !== null ? Math.round((einnahmen - gesamtKosten) * 100) / 100 : null;
 
   // Task counts
@@ -546,6 +612,8 @@ export function buildAbschlussData({
     stundenGesamt,
     aufgaben,
     equipment: eqRows.filter((e) => e.tage > 0),
+    projektAusgaben,
+    projektAusgabenGesamt,
     stundenSatz: settings.stundenSatz,
     zeitKosten,
     eqKosten,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calculator, Check, Download, Plus, Trash2, RotateCcw, Repeat } from 'lucide-react';
+import { Calculator, Check, Download, Plus, Trash2, RotateCcw, Repeat, ReceiptText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
@@ -39,6 +39,14 @@ interface WiederkehrendeAusgabe {
   kategorie: string | null;
 }
 
+interface ProjektAusgabe {
+  id: string;
+  bezeichnung: string;
+  betrag: number;
+  kategorie: string | null;
+  projektName: string;
+}
+
 interface MonatsabrechnungRechnerProps {
   settings: MonatsabrechnungSettings;
   staffeln: Staffel[];
@@ -46,6 +54,7 @@ interface MonatsabrechnungRechnerProps {
   abrechnungsMonat: string;
   abrechnungsMonatLabel: string;
   wiederkehrendeAusgaben?: WiederkehrendeAusgabe[];
+  projektAusgaben?: ProjektAusgabe[];
 }
 
 interface PersonErgebnis {
@@ -76,7 +85,7 @@ function berechneStaffelBonus(umsatz: number, staffeln: Staffel[]): number {
   return bonus;
 }
 
-export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnungsMonat, abrechnungsMonatLabel, wiederkehrendeAusgaben = [] }: MonatsabrechnungRechnerProps) {
+export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnungsMonat, abrechnungsMonatLabel, wiederkehrendeAusgaben = [], projektAusgaben = [] }: MonatsabrechnungRechnerProps) {
   const [einnahmePositionen, setEinnahmePositionen] = useState<EinnahmePosition[]>([{ projekt: '', betrag: '' }]);
   const [ausgabePositionen, setAusgabePositionen] = useState<AusgabePosition[]>([{ beschreibung: '', betrag: '' }]);
   const [boni, setBoni] = useState<BonusEintrag[]>([]);
@@ -193,7 +202,8 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
   const parse = (s: string) => parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
   const einnahmenZahl = einnahmePositionen.reduce((s, p) => s + parse(p.betrag), 0);
   const wiederkehrendSumme = wiederkehrendeAusgaben.reduce((s, a) => s + a.betrag, 0);
-  const ausgabenZahl = ausgabePositionen.reduce((s, p) => s + parse(p.betrag), 0) + wiederkehrendSumme;
+  const projektAusgabenSumme = projektAusgaben.reduce((s, a) => s + a.betrag, 0);
+  const ausgabenZahl = ausgabePositionen.reduce((s, p) => s + parse(p.betrag), 0) + wiederkehrendSumme + projektAusgabenSumme;
   const gesamtSumme = einnahmenZahl - ausgabenZahl;
   const verteilbareBase = Math.max(gesamtSumme, 0);
   const steuerruecklage = verteilbareBase * (settings.steuerProzent / 100);
@@ -511,6 +521,40 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
               <div className="flex justify-between px-3 py-1 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
                 <span>Wiederkehrend gesamt</span>
                 <span className="font-semibold" style={{ color: '#ef4444' }}>{formatEuro(wiederkehrendSumme)}</span>
+              </div>
+            </div>
+            <div className="my-3 border-t" style={{ borderColor: 'var(--neu-border)' }} />
+          </div>
+        )}
+
+        {/* Projektausgaben (automatisch, gesperrt) */}
+        {projektAusgaben.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <ReceiptText className="h-3 w-3" style={{ color: 'var(--neu-accent-mid)' }} />
+              <span className="text-xs font-medium" style={{ color: 'var(--neu-text-secondary)' }}>
+                Projektausgaben (automatisch)
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {projektAusgaben.map(a => (
+                <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                  style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                  <span className="flex-1 text-sm" style={{ color: 'var(--neu-text)' }}>{a.bezeichnung}</span>
+                  <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>{a.projektName}</span>
+                  {a.kategorie && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--neu-surface)', color: 'var(--neu-text-secondary)' }}>
+                      {a.kategorie}
+                    </span>
+                  )}
+                  <span className="text-sm font-semibold w-28 text-right" style={{ color: '#ef4444' }}>
+                    {formatEuro(a.betrag)}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between px-3 py-1 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                <span>Projektausgaben gesamt</span>
+                <span className="font-semibold" style={{ color: '#ef4444' }}>{formatEuro(projektAusgabenSumme)}</span>
               </div>
             </div>
             <div className="my-3 border-t" style={{ borderColor: 'var(--neu-border)' }} />

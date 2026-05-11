@@ -48,11 +48,17 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
     { data: alleTimeEntries },
     { data: alleAbrechnungen },
     { data: recurringExpenses },
+    { data: projektAusgabenRaw },
   ] = await Promise.all([
     supabase.from('profiles').select('id, full_name').order('full_name'),
     supabase.from('time_entries').select('user_id, duration_minutes, start_time').not('end_time', 'is', null),
     supabase.from('stunden_abrechnungen').select('user_id, stunden'),
     supabase.from('recurring_expenses').select('id, name, betrag, kategorie, aktiv').eq('aktiv', true).order('created_at'),
+    supabase.from('project_expenses')
+      .select('id, bezeichnung, betrag, kategorie, project_id, projects(name)')
+      .gte('datum', `${jahrStr}-${monatStr.padStart(2,'0')}-01`)
+      .lte('datum', `${jahrStr}-${monatStr.padStart(2,'0')}-${String(new Date(jahr, monat, 0).getDate()).padStart(2,'0')}`)
+      .order('datum', { ascending: true }),
   ]);
 
   // Build HashMaps for O(1) lookup instead of O(n) filter
@@ -119,6 +125,13 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
           name: e.name,
           betrag: Number(e.betrag),
           kategorie: e.kategorie,
+        }))}
+        projektAusgaben={(projektAusgabenRaw ?? []).map(e => ({
+          id: e.id,
+          bezeichnung: e.bezeichnung,
+          betrag: Number(e.betrag),
+          kategorie: e.kategorie,
+          projektName: (e as any).projects?.name ?? 'Unbekannt',
         }))}
       />
     </div>

@@ -15,6 +15,7 @@ export default async function AbschlussPage({ params }: { params: Promise<{ id: 
     { data: equipment },
     { data: tasks },
     settingsRaw,
+    { data: projektAusgabenRaw },
   ] = await Promise.all([
     supabase.from('projects').select('*').eq('id', id).single(),
     supabase
@@ -31,6 +32,11 @@ export default async function AbschlussPage({ params }: { params: Promise<{ id: 
       .eq('project_id', id),
     supabase.from('project_tasks').select('status').eq('project_id', id),
     loadSettingsServer('monatsabrechnung'),
+    supabase
+      .from('project_expenses')
+      .select('id, bezeichnung, betrag, kategorie, datum, rechnung_url, rechnung_name')
+      .eq('project_id', id)
+      .order('datum'),
   ]);
 
   if (!project) redirect('/projekte');
@@ -57,6 +63,7 @@ export default async function AbschlussPage({ params }: { params: Promise<{ id: 
     tasks,
     kundeData,
     settings,
+    projektAusgaben: (projektAusgabenRaw ?? []) as { bezeichnung: string; betrag: number; kategorie: string | null; datum: string }[],
   });
 
   return <AbschlussReportViewer data={data} />;

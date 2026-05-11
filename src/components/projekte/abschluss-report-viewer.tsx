@@ -252,6 +252,50 @@ export function AbschlussReportViewer({ data }: Props) {
         </div>
       )}
 
+      {/* Projektausgaben */}
+      {data.projektAusgaben.length > 0 && (
+        <div className="neu-raised p-5">
+          <h3
+            className="text-sm font-semibold mb-3"
+            style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}
+          >
+            Projektausgaben
+          </h3>
+          <div className="space-y-1.5">
+            {data.projektAusgaben.map((e, i) => (
+              <div key={i} className="neu-pressed px-3 py-2 rounded-xl flex items-center gap-2 flex-wrap">
+                <span className="flex-1 text-sm font-medium" style={{ color: 'var(--neu-text)' }}>
+                  {e.bezeichnung}
+                </span>
+                {e.kategorie && (
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'var(--neu-surface)', color: 'var(--neu-text-secondary)' }}
+                  >
+                    {e.kategorie}
+                  </span>
+                )}
+                <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                  {e.datum}
+                </span>
+                <span className="text-sm font-medium w-24 text-right" style={{ color: '#ef4444' }}>
+                  {eur(e.betrag)}
+                </span>
+              </div>
+            ))}
+            <div
+              className="flex justify-between px-3 py-1 text-xs"
+              style={{ color: 'var(--neu-text-secondary)' }}
+            >
+              <span>Projektausgaben gesamt</span>
+              <span className="font-semibold" style={{ color: '#ef4444' }}>
+                {eur(data.projektAusgabenGesamt)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Finanzübersicht */}
       <div className="neu-raised p-5">
         <h3
@@ -278,6 +322,7 @@ export function AbschlussReportViewer({ data }: Props) {
               value: eur(data.investRücklage),
             },
             { label: 'Equipmentkosten', detail: '', value: eur(data.eqKosten) },
+            { label: 'Projektausgaben', detail: '', value: eur(data.projektAusgabenGesamt) },
           ].map((row) => (
             <div key={row.label} className="neu-pressed px-4 py-2 flex justify-between rounded-xl items-center">
               <div>
