@@ -1,8 +1,10 @@
 import Link from 'next/link';
-import { Calculator, Archive, Clock, TrendingUp, TrendingDown, Minus, FileText, Package, Repeat, ReceiptText, Target } from 'lucide-react';
+import {
+  Calculator, Archive, Clock, TrendingUp, TrendingDown, Minus,
+  FileText, Package, Repeat, ReceiptText, Target, ChevronRight,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { FinanzChart } from '@/components/finanzen/finanz-chart';
-import { WidgetPinButton } from '@/components/dashboard/widget-pin-button';
 
 const MONAT_LABELS: Record<string, string> = {
   '01': 'Jan', '02': 'Feb', '03': 'Mär', '04': 'Apr',
@@ -11,42 +13,51 @@ const MONAT_LABELS: Record<string, string> = {
 };
 
 function shortLabel(monat: string) {
-  // "2025-03" → "Mär 25"
   const [year, month] = monat.split('-');
   return `${MONAT_LABELS[month] ?? month} ${year?.slice(2)}`;
 }
 
 function eur(v: number) {
-  return v.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+  return v.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 }
 
 export default async function FinanzenPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const jahr = new Date().getFullYear();
+  const startOfYear = `${jahr}-01`;
+  const endOfYear = `${jahr}-12`;
 
-  const [{ data: abrechnungen }, { data: widgetRows }] = await Promise.all([
+  const [{ data: abrechnungenJahr }, { data: abrechnungenAlle }, { data: zielRow }] = await Promise.all([
     supabase
       .from('gewinnverteilungen')
-      .select('monat, einnahmen, ausgaben, gesamtgewinn')
-      .not('monat', 'is', null)
+      .select('monat, einnahmen, ausgaben')
+      .gte('monat', startOfYear)
+      .lte('monat', endOfYear)
       .order('monat', { ascending: true }),
     supabase
-      .from('user_widgets')
-      .select('widget_id')
-      .eq('user_id', user!.id),
+      .from('gewinnverteilungen')
+      .select('monat, einnahmen, ausgaben')
+      .not('monat', 'is', null)
+      .order('monat', { ascending: true }),
+    supabase.from('jahresziele').select('umsatzziel').eq('jahr', jahr).maybeSingle(),
   ]);
 
-  // Aggregate by month (sum if multiple entries per month)
+  // KPIs — aktuelles Jahr
+  const einnahmenJahr = (abrechnungenJahr ?? []).reduce((s, r) => s + Number(r.einnahmen ?? 0), 0);
+  const ausgabenJahr  = (abrechnungenJahr ?? []).reduce((s, r) => s + Number(r.ausgaben ?? 0), 0);
+  const ergebnisJahr  = einnahmenJahr - ausgabenJahr;
+
+  // Chart — letzte 6 Monate aus allen Daten
   const byMonth: Record<string, { einnahmen: number; ausgaben: number }> = {};
-  for (const row of (abrechnungen ?? [])) {
+  for (const row of (abrechnungenAlle ?? [])) {
     const key = row.monat as string;
     if (!byMonth[key]) byMonth[key] = { einnahmen: 0, ausgaben: 0 };
     byMonth[key].einnahmen += Number(row.einnahmen ?? 0);
     byMonth[key].ausgaben += Number(row.ausgaben ?? 0);
   }
-
   const chartData = Object.entries(byMonth)
     .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-6)
     .map(([monat, d]) => ({
       monat,
       label: shortLabel(monat),
@@ -55,99 +66,137 @@ export default async function FinanzenPage() {
       ergebnis: d.einnahmen - d.ausgaben,
     }));
 
-  const gesamtEinnahmen = chartData.reduce((s, d) => s + d.einnahmen, 0);
-  const gesamtAusgaben = chartData.reduce((s, d) => s + d.ausgaben, 0);
-  const gesamtErgebnis = gesamtEinnahmen - gesamtAusgaben;
-
-  const pinnedWidgets = new Set((widgetRows ?? []).map((w) => w.widget_id));
-  const isChartPinned = pinnedWidgets.has('finanz_chart');
+  // Jahresziel
+  const umsatzziel = Number(zielRow?.umsatzziel ?? 0);
+  const prozentZiel = umsatzziel > 0 ? Math.min(Math.round((einnahmenJahr / umsatzziel) * 100), 100) : null;
+  const zielColor = prozentZiel === null ? 'var(--neu-accent)' : prozentZiel >= 100 ? '#10b981' : prozentZiel >= 50 ? '#3b82f6' : '#f59e0b';
 
   return (
-    <div>
-      <div className="mb-6">
+    <div className="space-y-6">
+
+      {/* Header */}
+      <div>
         <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>Finanzen</h1>
-        <p style={{ color: 'var(--neu-text-secondary)' }} className="mt-1 text-sm">Finanzuebersicht und Abrechnungen</p>
+        <p className="mt-1 text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Übersicht {jahr}</p>
       </div>
 
-      {/* Übersicht-Karten */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      {/* KPI-Karten — aktuelles Jahr */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="neu-raised p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="h-4 w-4" style={{ color: '#10b981' }} />
-            <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Einnahmen gesamt</p>
+          <div className="flex items-center gap-1.5 mb-2">
+            <TrendingUp className="h-3.5 w-3.5" style={{ color: '#10b981' }} />
+            <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Einnahmen {jahr}</p>
           </div>
-          <p className="text-lg font-bold" style={{ color: '#10b981' }}>{eur(gesamtEinnahmen)}</p>
+          <p className="text-xl font-bold" style={{ color: '#10b981' }}>{eur(einnahmenJahr)}</p>
         </div>
         <div className="neu-raised p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingDown className="h-4 w-4" style={{ color: '#ef4444' }} />
-            <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Ausgaben gesamt</p>
+          <div className="flex items-center gap-1.5 mb-2">
+            <TrendingDown className="h-3.5 w-3.5" style={{ color: '#ef4444' }} />
+            <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Ausgaben {jahr}</p>
           </div>
-          <p className="text-lg font-bold" style={{ color: '#ef4444' }}>{eur(gesamtAusgaben)}</p>
+          <p className="text-xl font-bold" style={{ color: '#ef4444' }}>{eur(ausgabenJahr)}</p>
         </div>
         <div className="neu-raised p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Minus className="h-4 w-4" style={{ color: gesamtErgebnis >= 0 ? '#f59e0b' : '#ef4444' }} />
-            <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Ergebnis gesamt</p>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Minus className="h-3.5 w-3.5" style={{ color: ergebnisJahr >= 0 ? '#f59e0b' : '#ef4444' }} />
+            <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Ergebnis {jahr}</p>
           </div>
-          <p className="text-lg font-bold" style={{ color: gesamtErgebnis >= 0 ? '#f59e0b' : '#ef4444' }}>{eur(gesamtErgebnis)}</p>
+          <p className="text-xl font-bold" style={{ color: ergebnisJahr >= 0 ? '#f59e0b' : '#ef4444' }}>{eur(ergebnisJahr)}</p>
         </div>
+        <Link href="/finanzen/jahresziele" className="neu-raised p-4 block hover:opacity-90 transition-opacity">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Target className="h-3.5 w-3.5" style={{ color: zielColor }} />
+            <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Jahresziel</p>
+          </div>
+          {prozentZiel !== null ? (
+            <p className="text-xl font-bold" style={{ color: zielColor }}>{prozentZiel}%</p>
+          ) : (
+            <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Nicht gesetzt</p>
+          )}
+        </Link>
       </div>
 
       {/* Chart */}
-      <div className="neu-raised p-5 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>
-            Einnahmen & Ausgaben
-          </h2>
-          <WidgetPinButton widgetId="finanz_chart" isPinned={isChartPinned} />
-        </div>
+      <div className="neu-raised p-5">
+        <h2 className="text-sm font-semibold mb-4" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>
+          Einnahmen & Ausgaben — letzte 6 Monate
+        </h2>
         <FinanzChart data={chartData} />
       </div>
 
-      {/* Navigation */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Link href="/finanzen/monatsabrechnung" className="neu-raised p-6 block transition-all hover:opacity-90">
-          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Calculator className="h-6 w-6" /></div>
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Monatsabrechnung</h3>
-          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Monatliche Gewinnverteilung berechnen</p>
-        </Link>
-        <Link href="/finanzen/archiv" className="neu-raised p-6 block transition-all hover:opacity-90">
-          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Archive className="h-6 w-6" /></div>
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Archiv</h3>
-          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Abgeschlossene Abrechnungen einsehen</p>
-        </Link>
-        <Link href="/zeiterfassung" className="neu-raised p-6 block transition-all hover:opacity-90">
-          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Clock className="h-6 w-6" /></div>
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Zeiterfassung</h3>
-          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Arbeitszeiten erfassen und auswerten</p>
-        </Link>
-        <Link href="/finanzen/projektkalkulation" className="neu-raised p-6 block transition-all hover:opacity-90">
-          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><FileText className="h-6 w-6" /></div>
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Projektkalkulation</h3>
-          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Was kostet ein Projekt?</p>
-        </Link>
-        <Link href="/finanzen/leistungen" className="neu-raised p-6 block transition-all hover:opacity-90">
-          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Package className="h-6 w-6" /></div>
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Leistungen</h3>
-          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Leistungen und Personas verwalten</p>
-        </Link>
-        <Link href="/finanzen/wiederkehrende-ausgaben" className="neu-raised p-6 block transition-all hover:opacity-90">
-          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Repeat className="h-6 w-6" /></div>
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Wiederkehrende Ausgaben</h3>
-          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Monatliche Fixkosten verwalten</p>
-        </Link>
-        <Link href="/finanzen/projektausgaben" className="neu-raised p-6 block transition-all hover:opacity-90">
-          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><ReceiptText className="h-6 w-6" /></div>
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Projektausgaben</h3>
-          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Ausgaben Projekten zuweisen</p>
-        </Link>
-        <Link href="/finanzen/jahresziele" className="neu-raised p-6 block transition-all hover:opacity-90">
-          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Target className="h-6 w-6" /></div>
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Jahresziel</h3>
-          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Umsatzziel und Jahresfortschritt</p>
-        </Link>
+      {/* Navigation — gruppiert */}
+      <div className="space-y-4">
+
+        {/* Abrechnung */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--neu-text-secondary)' }}>
+            Abrechnung
+          </p>
+          <div className="neu-raised overflow-hidden">
+            <NavRow href="/finanzen/monatsabrechnung" icon={<Calculator className="h-4 w-4" />} label="Monatsabrechnung" desc="Monatliche Gewinnverteilung berechnen" />
+            <div className="h-px" style={{ background: 'var(--neu-border)' }} />
+            <NavRow href="/finanzen/archiv" icon={<Archive className="h-4 w-4" />} label="Archiv" desc="Abgeschlossene Abrechnungen einsehen" />
+          </div>
+        </div>
+
+        {/* Ausgaben */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--neu-text-secondary)' }}>
+            Ausgaben
+          </p>
+          <div className="neu-raised overflow-hidden">
+            <NavRow href="/finanzen/wiederkehrende-ausgaben" icon={<Repeat className="h-4 w-4" />} label="Wiederkehrende Ausgaben" desc="Monatliche Fixkosten verwalten" />
+            <div className="h-px" style={{ background: 'var(--neu-border)' }} />
+            <NavRow href="/finanzen/projektausgaben" icon={<ReceiptText className="h-4 w-4" />} label="Projektausgaben" desc="Ausgaben Projekten zuweisen" />
+          </div>
+        </div>
+
+        {/* Planung & Tools */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--neu-text-secondary)' }}>
+            Planung & Tools
+          </p>
+          <div className="neu-raised overflow-hidden">
+            <NavRow href="/finanzen/jahresziele" icon={<Target className="h-4 w-4" />} label="Jahresziel" desc="Umsatzziel und Jahresfortschritt" />
+            <div className="h-px" style={{ background: 'var(--neu-border)' }} />
+            <NavRow href="/finanzen/projektkalkulation" icon={<FileText className="h-4 w-4" />} label="Projektkalkulation" desc="Kosten für ein Projekt berechnen" />
+            <div className="h-px" style={{ background: 'var(--neu-border)' }} />
+            <NavRow href="/finanzen/leistungen" icon={<Package className="h-4 w-4" />} label="Leistungen & Personas" desc="Leistungspakete und Stundensätze verwalten" />
+          </div>
+        </div>
+
+        {/* Sonstiges */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--neu-text-secondary)' }}>
+            Sonstiges
+          </p>
+          <div className="neu-raised overflow-hidden">
+            <NavRow href="/zeiterfassung" icon={<Clock className="h-4 w-4" />} label="Zeiterfassung" desc="Arbeitszeiten erfassen und auswerten" />
+          </div>
+        </div>
+
       </div>
     </div>
+  );
+}
+
+function NavRow({ href, icon, label, desc }: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  desc: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-4 px-5 py-4 hover:opacity-80 transition-opacity"
+    >
+      <span style={{ color: 'var(--neu-accent)' }}>{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-medium" style={{ color: 'var(--neu-text)' }}>{label}</span>
+        <span className="block text-xs mt-0.5" style={{ color: 'var(--neu-text-secondary)' }}>{desc}</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0" style={{ color: 'var(--neu-text-secondary)' }} />
+    </Link>
   );
 }
