@@ -30,6 +30,9 @@ export const WIDGET_REGISTRY: WidgetMeta[] = [
   { key: 'finanzen_chart',   group: 'Finanzen', variant: 'full',    variantLevel: 3, label: 'Finanz-Chart',    description: 'Einnahmen & Ausgaben Diagramm', defaultColSpan: 4, adminOnly: true, icon: 'BarChart2' },
   { key: 'finanzen_compact', group: 'Finanzen', variant: 'compact', variantLevel: 2, label: 'Finanzen Kompakt', description: 'Monatliche Übersicht',         defaultColSpan: 2, adminOnly: true, icon: 'Euro' },
   { key: 'finanzen_mini',    group: 'Finanzen', variant: 'mini',    variantLevel: 1, label: 'Finanzen Mini',    description: 'Gesamtergebnis',               defaultColSpan: 1, adminOnly: true, icon: 'Euro' },
+  // Jahresziel
+  { key: 'jahresziel_compact', group: 'Jahresziel', variant: 'compact', variantLevel: 2, label: 'Jahresziel Kompakt', description: 'Ziel-% + Jahresfortschritt', defaultColSpan: 2, adminOnly: true, icon: 'Target' },
+  { key: 'jahresziel_mini',    group: 'Jahresziel', variant: 'mini',    variantLevel: 1, label: 'Jahresziel Mini',    description: 'Zielerreichung in %',       defaultColSpan: 1, adminOnly: true, icon: 'Target' },
   // Meetings
   { key: 'meetings_compact', group: 'Meetings', variant: 'compact', variantLevel: 2, label: 'Meetings Kompakt', description: 'Nächste Meetings', defaultColSpan: 2, icon: 'MessageSquare' },
   { key: 'meetings_mini',    group: 'Meetings', variant: 'mini',    variantLevel: 1, label: 'Meetings Mini',    description: 'Nächstes Meeting', defaultColSpan: 1, icon: 'MessageSquare' },

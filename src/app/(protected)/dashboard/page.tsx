@@ -16,6 +16,8 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  const jahrNow = new Date().getFullYear();
+
   const [
     { data: profile },
     { data: trackingData },
@@ -31,6 +33,8 @@ export default async function DashboardPage() {
     { data: myProjectTasks },
     { data: myGeneralTaskAssignees },
     { data: alleProfile },
+    { data: zielRow },
+    { data: einnahmenJahrRows },
   ] = await Promise.all([
     supabase.from('profiles').select('role, full_name').eq('id', user!.id).maybeSingle(),
     supabase.from('time_entries').select('duration_minutes').eq('user_id', user!.id).not('end_time', 'is', null),
@@ -57,6 +61,9 @@ export default async function DashboardPage() {
     supabase.from('task_assignees').select('task_id, tasks(id, title, status)').eq('user_id', user!.id).limit(20),
     // All profiles incl. current user (für Aufgaben-Assignee-Picker)
     supabase.from('profiles').select('id, full_name'),
+    // Jahresziel
+    supabase.from('jahresziele').select('umsatzziel').eq('jahr', jahrNow).maybeSingle(),
+    supabase.from('gewinnverteilungen').select('einnahmen, monat').gte('monat', `${jahrNow}-01`).lte('monat', `${jahrNow}-12`),
   ]);
 
   const isAdmin = profile?.role === 'admin';
@@ -113,6 +120,15 @@ export default async function DashboardPage() {
   const gesamtEinnahmen = Object.values(byMonth).reduce((s, d) => s + d.einnahmen, 0);
   const gesamtAusgaben = Object.values(byMonth).reduce((s, d) => s + d.ausgaben, 0);
 
+  // Jahresziel
+  const umsatzzielDash = Number(zielRow?.umsatzziel ?? 0);
+  const einnahmenJahrDash = (einnahmenJahrRows ?? []).reduce((s: number, r: any) => s + Number(r.einnahmen ?? 0), 0);
+  const startYearDash = new Date(jahrNow, 0, 1);
+  const endYearDash = new Date(jahrNow + 1, 0, 1);
+  const nowDash = new Date();
+  const prozentJahrDash = Math.round(((nowDash.getTime() - startYearDash.getTime()) / (endYearDash.getTime() - startYearDash.getTime())) * 100);
+  const prozentZielDash = umsatzzielDash > 0 ? Math.min(Math.round((einnahmenJahrDash / umsatzzielDash) * 100), 100) : 0;
+
   // Aufgaben zusammenführen
   type AufgabeItem = { id: string; title: string; status: string; source: string; type: 'meeting' | 'project' | 'general' };
   const meineAufgaben: AufgabeItem[] = [
@@ -154,6 +170,13 @@ export default async function DashboardPage() {
     chartData,
     gesamtEinnahmen,
     gesamtAusgaben,
+    jahreszielData: {
+      umsatzziel: umsatzzielDash,
+      einnahmenJahr: einnahmenJahrDash,
+      prozentZiel: prozentZielDash,
+      prozentJahr: prozentJahrDash,
+      jahr: jahrNow,
+    },
   };
 
   // Alle User: persönliche Config aus DB

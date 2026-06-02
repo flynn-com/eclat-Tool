@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Calculator, Archive, Clock, TrendingUp, TrendingDown, Minus, FileText, Package, Repeat, ReceiptText } from 'lucide-react';
+import { Calculator, Archive, Clock, TrendingUp, TrendingDown, Minus, FileText, Package, Repeat, ReceiptText, Target } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { FinanzChart } from '@/components/finanzen/finanz-chart';
 import { WidgetPinButton } from '@/components/dashboard/widget-pin-button';
@@ -141,6 +141,11 @@ export default async function FinanzenPage() {
           <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><ReceiptText className="h-6 w-6" /></div>
           <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Projektausgaben</h3>
           <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Ausgaben Projekten zuweisen</p>
+        </Link>
+        <Link href="/finanzen/jahresziele" className="neu-raised p-6 block transition-all hover:opacity-90">
+          <div style={{ color: 'var(--neu-accent)' }} className="mb-3"><Target className="h-6 w-6" /></div>
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--neu-text)' }}>Jahresziel</h3>
+          <p className="text-sm mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Umsatzziel und Jahresfortschritt</p>
         </Link>
       </div>
     </div>

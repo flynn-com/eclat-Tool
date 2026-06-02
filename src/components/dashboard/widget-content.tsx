@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import {
   Clock, CheckSquare, FolderKanban, Euro, BarChart2,
-  MessageSquare, Wrench, Construction, Check, Plus, X,
+  MessageSquare, Wrench, Construction, Check, Plus, X, Target,
 } from 'lucide-react';
 import { FinanzChart } from '@/components/finanzen/finanz-chart';
 import { toggleMeetingTask, toggleProjectTask, toggleGeneralTask, createGeneralTask } from '@/lib/actions/tasks';
@@ -44,6 +44,14 @@ export interface WidgetData {
   chartData?: { monat: string; label: string; einnahmen: number; ausgaben: number; ergebnis: number }[];
   gesamtEinnahmen?: number;
   gesamtAusgaben?: number;
+  // Jahresziel
+  jahreszielData?: {
+    umsatzziel: number;
+    einnahmenJahr: number;
+    prozentZiel: number;
+    prozentJahr: number;
+    jahr: number;
+  };
 }
 
 function fmt(minutes: number) {
@@ -493,6 +501,63 @@ export function WidgetContent({ widgetKey, data }: { widgetKey: string; data: Wi
     // ── Equipment ─────────────────────────────────────
     case 'equipment_mini':
       return <Placeholder label="Equipment Mini" icon={<Wrench className="h-8 w-8" />} />;
+
+    // ── Jahresziel ────────────────────────────────────
+    case 'jahresziel_mini': {
+      const d = data.jahreszielData;
+      if (!d || d.umsatzziel === 0) {
+        return (
+          <a href="/finanzen/jahresziele" className="flex flex-col justify-between h-full">
+            <p className="text-xs font-medium" style={{ color: 'var(--neu-text-secondary)' }}>Jahresziel</p>
+            <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Kein Ziel gesetzt</p>
+            <p className="text-xs" style={{ color: 'var(--neu-accent)' }}>Ziel festlegen →</p>
+          </a>
+        );
+      }
+      const color = d.prozentZiel >= 100 ? '#10b981' : d.prozentZiel >= 50 ? '#3b82f6' : '#f59e0b';
+      return (
+        <a href="/finanzen/jahresziele" className="flex flex-col justify-between h-full">
+          <p className="text-xs font-medium" style={{ color: 'var(--neu-text-secondary)' }}>Jahresziel {d.jahr}</p>
+          <p className="text-4xl font-bold leading-tight" style={{ color }}>{d.prozentZiel}%</p>
+          <p className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>Jahr zu {d.prozentJahr}% abgelaufen</p>
+        </a>
+      );
+    }
+
+    case 'jahresziel_compact': {
+      const d = data.jahreszielData;
+      if (!d || d.umsatzziel === 0) {
+        return (
+          <a href="/finanzen/jahresziele" className="flex flex-col justify-center items-center h-full gap-2">
+            <Target className="h-8 w-8 opacity-30" style={{ color: 'var(--neu-accent)' }} />
+            <p className="text-sm" style={{ color: 'var(--neu-text-secondary)' }}>Kein Jahresziel gesetzt</p>
+            <p className="text-xs" style={{ color: 'var(--neu-accent)' }}>Ziel festlegen →</p>
+          </a>
+        );
+      }
+      const color = d.prozentZiel >= 100 ? '#10b981' : d.prozentZiel >= 50 ? '#3b82f6' : '#f59e0b';
+      const eurFmt = (v: number) => v.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+      return (
+        <a href="/finanzen/jahresziele" className="flex flex-col h-full">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium" style={{ color: 'var(--neu-text-secondary)' }}>Jahresziel {d.jahr}</p>
+            <Target className="h-3.5 w-3.5" style={{ color: 'var(--neu-accent)' }} />
+          </div>
+          <p className="text-5xl font-bold leading-tight mb-1" style={{ color }}>{d.prozentZiel}%</p>
+          <p className="text-xs mb-3" style={{ color: 'var(--neu-text-secondary)' }}>des Jahresziels erreicht</p>
+          {/* Zielbalken */}
+          <div className="h-2.5 rounded-full mb-1 overflow-hidden" style={{ background: 'var(--neu-surface)' }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${d.prozentZiel}%`, background: color }} />
+          </div>
+          <p className="text-xs mb-3" style={{ color: 'var(--neu-text-secondary)' }}>{eurFmt(d.einnahmenJahr)} von {eurFmt(d.umsatzziel)}</p>
+          {/* Jahresbalken */}
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--neu-surface)' }}>
+            <div className="h-full rounded-full" style={{ width: `${d.prozentJahr}%`, background: 'var(--neu-border)' }} />
+          </div>
+          <p className="text-xs mt-1" style={{ color: 'var(--neu-text-secondary)' }}>Jahr zu {d.prozentJahr}% abgelaufen</p>
+        </a>
+      );
+    }
 
     default:
       return <Placeholder label={widgetKey} icon={<Construction className="h-8 w-8" />} />;
