@@ -54,6 +54,16 @@ interface ProjektEinnahme {
   color: string;
 }
 
+interface AbschlussAusgabe {
+  projektId: string;
+  projektName: string;
+  projektColor: string;
+  id: string;
+  bezeichnung: string;
+  betrag: number;
+  kategorie: string | null;
+}
+
 interface MonatsabrechnungRechnerProps {
   settings: MonatsabrechnungSettings;
   staffeln: Staffel[];
@@ -63,6 +73,7 @@ interface MonatsabrechnungRechnerProps {
   wiederkehrendeAusgaben?: WiederkehrendeAusgabe[];
   projektAusgaben?: ProjektAusgabe[];
   projektEinnahmen?: ProjektEinnahme[];
+  abschlussAusgaben?: AbschlussAusgabe[];
 }
 
 interface PersonErgebnis {
@@ -93,7 +104,7 @@ function berechneStaffelBonus(umsatz: number, staffeln: Staffel[]): number {
   return bonus;
 }
 
-export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnungsMonat, abrechnungsMonatLabel, wiederkehrendeAusgaben = [], projektAusgaben = [], projektEinnahmen = [] }: MonatsabrechnungRechnerProps) {
+export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnungsMonat, abrechnungsMonatLabel, wiederkehrendeAusgaben = [], projektAusgaben = [], projektEinnahmen = [], abschlussAusgaben = [] }: MonatsabrechnungRechnerProps) {
   const [einnahmePositionen, setEinnahmePositionen] = useState<EinnahmePosition[]>([{ projekt: '', betrag: '' }]);
   const [ausgabePositionen, setAusgabePositionen] = useState<AusgabePosition[]>([{ beschreibung: '', betrag: '' }]);
   const [boni, setBoni] = useState<BonusEintrag[]>([]);
@@ -212,7 +223,8 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
   const einnahmenZahl = einnahmePositionen.reduce((s, p) => s + parse(p.betrag), 0) + projektEinnahmenSumme;
   const wiederkehrendSumme = wiederkehrendeAusgaben.reduce((s, a) => s + a.betrag, 0);
   const projektAusgabenSumme = projektAusgaben.reduce((s, a) => s + a.betrag, 0);
-  const ausgabenZahl = ausgabePositionen.reduce((s, p) => s + parse(p.betrag), 0) + wiederkehrendSumme + projektAusgabenSumme;
+  const abschlussAusgabenSumme = abschlussAusgaben.reduce((s, a) => s + a.betrag, 0);
+  const ausgabenZahl = ausgabePositionen.reduce((s, p) => s + parse(p.betrag), 0) + wiederkehrendSumme + projektAusgabenSumme + abschlussAusgabenSumme;
   const gesamtSumme = einnahmenZahl - ausgabenZahl;
   const verteilbareBase = Math.max(gesamtSumme, 0);
   const steuerruecklage = verteilbareBase * (settings.steuerProzent / 100);
@@ -597,6 +609,41 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
               <div className="flex justify-between px-3 py-1 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
                 <span>Projektausgaben gesamt</span>
                 <span className="font-semibold" style={{ color: '#ef4444' }}>{formatEuro(projektAusgabenSumme)}</span>
+              </div>
+            </div>
+            <div className="my-3 border-t" style={{ borderColor: 'var(--neu-border)' }} />
+          </div>
+        )}
+
+        {/* Abschlussausgaben — Projektausgaben aus abgeschlossenen Projekten */}
+        {abschlussAusgaben.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <FolderCheck className="h-3 w-3" style={{ color: 'var(--neu-accent-mid)' }} />
+              <span className="text-xs font-medium" style={{ color: 'var(--neu-text-secondary)' }}>
+                Ausgaben abgeschlossener Projekte (automatisch)
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {abschlussAusgaben.map(a => (
+                <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                  style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: a.projektColor }} />
+                  <span className="flex-1 text-sm" style={{ color: 'var(--neu-text)' }}>{a.bezeichnung}</span>
+                  <span className="text-xs" style={{ color: 'var(--neu-text-secondary)' }}>{a.projektName}</span>
+                  {a.kategorie && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--neu-surface)', color: 'var(--neu-text-secondary)' }}>
+                      {a.kategorie}
+                    </span>
+                  )}
+                  <span className="text-sm font-semibold w-28 text-right" style={{ color: '#ef4444' }}>
+                    {formatEuro(a.betrag)}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between px-3 py-1 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                <span>Projektausgaben (Abschluss) gesamt</span>
+                <span className="font-semibold" style={{ color: '#ef4444' }}>{formatEuro(abschlussAusgabenSumme)}</span>
               </div>
             </div>
             <div className="my-3 border-t" style={{ borderColor: 'var(--neu-border)' }} />

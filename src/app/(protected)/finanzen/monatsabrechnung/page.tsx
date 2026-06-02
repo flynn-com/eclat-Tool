@@ -64,11 +64,14 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
       .lte('datum', `${jahrStr}-${monatStr2}-${lastDayOfMonth}`)
       .order('datum', { ascending: true }),
     supabase.from('projects')
-      .select('id, name, budget, color')
+      .select('id, name, budget, color, project_expenses(id, bezeichnung, betrag, kategorie)')
       .not('completed_at', 'is', null)
       .gte('completed_at', startOfMonth)
       .lte('completed_at', endOfMonth),
   ]);
+
+  // IDs der abgeschlossenen Projekte — deren Ausgaben kommen gebündelt, nicht per datum
+  const completedIds = new Set((abgeschlosseneProjekte ?? []).map(p => p.id));
 
   // Build HashMaps for O(1) lookup instead of O(n) filter
   const vorMonatMap = new Map<string, number>();
@@ -135,13 +138,16 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
           betrag: Number(e.betrag),
           kategorie: e.kategorie,
         }))}
-        projektAusgaben={(projektAusgabenRaw ?? []).map(e => ({
-          id: e.id,
-          bezeichnung: e.bezeichnung,
-          betrag: Number(e.betrag),
-          kategorie: e.kategorie,
-          projektName: (e as any).projects?.name ?? 'Unbekannt',
-        }))}
+        projektAusgaben={(projektAusgabenRaw ?? [])
+          // Ausgaben abgeschlossener Projekte werden separat angezeigt → nicht doppelt zählen
+          .filter(e => !completedIds.has(e.project_id))
+          .map(e => ({
+            id: e.id,
+            bezeichnung: e.bezeichnung,
+            betrag: Number(e.betrag),
+            kategorie: e.kategorie,
+            projektName: (e as any).projects?.name ?? 'Unbekannt',
+          }))}
         projektEinnahmen={(abgeschlosseneProjekte ?? [])
           .filter(p => p.budget != null && Number(p.budget) > 0)
           .map(p => ({
@@ -150,6 +156,17 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
             budget: Number(p.budget),
             color: p.color ?? '#10b981',
           }))}
+        abschlussAusgaben={(abgeschlosseneProjekte ?? []).flatMap(p =>
+          ((p as any).project_expenses ?? []).map((e: any) => ({
+            projektId: p.id,
+            projektName: p.name,
+            projektColor: p.color ?? '#6b7280',
+            id: e.id,
+            bezeichnung: e.bezeichnung,
+            betrag: Number(e.betrag),
+            kategorie: e.kategorie ?? null,
+          }))
+        )}
       />
     </div>
   );
