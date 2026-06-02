@@ -27,7 +27,7 @@ export default async function FinanzenPage() {
   const startOfYear = `${jahr}-01`;
   const endOfYear = `${jahr}-12`;
 
-  const [{ data: abrechnungenJahr }, { data: abrechnungenAlle }, { data: zielRow }] = await Promise.all([
+  const [{ data: abrechnungenJahr }, { data: abrechnungenAlle }, { data: zielRow }, { data: manuelleJahr }] = await Promise.all([
     supabase
       .from('gewinnverteilungen')
       .select('monat, einnahmen, ausgaben')
@@ -40,10 +40,12 @@ export default async function FinanzenPage() {
       .not('monat', 'is', null)
       .order('monat', { ascending: true }),
     supabase.from('jahresziele').select('umsatzziel').eq('jahr', jahr).maybeSingle(),
+    supabase.from('manuelle_einnahmen').select('betrag').gte('monat', startOfYear).lte('monat', endOfYear),
   ]);
 
-  // KPIs — aktuelles Jahr
-  const einnahmenJahr = (abrechnungenJahr ?? []).reduce((s, r) => s + Number(r.einnahmen ?? 0), 0);
+  // KPIs — aktuelles Jahr (Monatsabrechnungen + manuelle Einnahmen)
+  const einnahmenJahr = (abrechnungenJahr ?? []).reduce((s, r) => s + Number(r.einnahmen ?? 0), 0)
+    + (manuelleJahr ?? []).reduce((s, r) => s + Number(r.betrag ?? 0), 0);
   const ausgabenJahr  = (abrechnungenJahr ?? []).reduce((s, r) => s + Number(r.ausgaben ?? 0), 0);
   const ergebnisJahr  = einnahmenJahr - ausgabenJahr;
 

@@ -35,6 +35,7 @@ export default async function DashboardPage() {
     { data: alleProfile },
     { data: zielRow },
     { data: einnahmenJahrRows },
+    { data: manuelleJahrRows },
   ] = await Promise.all([
     supabase.from('profiles').select('role, full_name').eq('id', user!.id).maybeSingle(),
     supabase.from('time_entries').select('duration_minutes').eq('user_id', user!.id).not('end_time', 'is', null),
@@ -64,6 +65,7 @@ export default async function DashboardPage() {
     // Jahresziel
     supabase.from('jahresziele').select('umsatzziel').eq('jahr', jahrNow).maybeSingle(),
     supabase.from('gewinnverteilungen').select('einnahmen, monat').gte('monat', `${jahrNow}-01`).lte('monat', `${jahrNow}-12`),
+    supabase.from('manuelle_einnahmen').select('betrag').gte('monat', `${jahrNow}-01`).lte('monat', `${jahrNow}-12`),
   ]);
 
   const isAdmin = profile?.role === 'admin';
@@ -122,7 +124,8 @@ export default async function DashboardPage() {
 
   // Jahresziel
   const umsatzzielDash = Number(zielRow?.umsatzziel ?? 0);
-  const einnahmenJahrDash = (einnahmenJahrRows ?? []).reduce((s: number, r: any) => s + Number(r.einnahmen ?? 0), 0);
+  const einnahmenJahrDash = (einnahmenJahrRows ?? []).reduce((s: number, r: any) => s + Number(r.einnahmen ?? 0), 0)
+    + (manuelleJahrRows ?? []).reduce((s: number, r: any) => s + Number(r.betrag ?? 0), 0);
   const startYearDash = new Date(jahrNow, 0, 1);
   const endYearDash = new Date(jahrNow + 1, 0, 1);
   const nowDash = new Date();
