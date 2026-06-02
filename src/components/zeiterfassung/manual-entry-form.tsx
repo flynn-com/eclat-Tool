@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Clock, Timer } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ProjectSelect } from './project-select';
@@ -12,10 +12,13 @@ interface ManualEntryFormProps {
   categories?: TimeCategory[];
 }
 
+type Mode = 'zeiten' | 'dauer';
+
 export function ManualEntryForm({ projects, categories = [] }: ManualEntryFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>('zeiten');
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -30,16 +33,14 @@ export function ManualEntryForm({ projects, categories = [] }: ManualEntryFormPr
     try {
       const formData = new FormData(form);
       const date = formData.get('date') as string;
-      const startTimeStr = formData.get('start_time') as string;
-      const endTimeStr = formData.get('end_time') as string;
       const raw = (formData.get('project_id') as string) || '';
       const isCategory = raw.startsWith('cat_');
       const projectId = !isCategory && raw.trim() !== '' ? raw : null;
       const categoryId = isCategory ? raw.replace('cat_', '') : null;
       const description = (formData.get('description') as string) || null;
 
-      if (!date || !startTimeStr || !endTimeStr) {
-        setError('Datum, Start- und Endzeit sind erforderlich');
+      if (!date) {
+        setError('Datum ist erforderlich');
         setIsLoading(false);
         return;
       }
@@ -51,22 +52,58 @@ export function ManualEntryForm({ projects, categories = [] }: ManualEntryFormPr
         return;
       }
 
-      const startTime = new Date(`${date}T${startTimeStr}:00`);
-      const endTime = new Date(`${date}T${endTimeStr}:00`);
+      let startTime: Date;
+      let endTime: Date;
+      let durationMinutes: number;
 
-      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-        setError('Ungueltiges Datum oder Zeitformat');
-        setIsLoading(false);
-        return;
+      if (mode === 'zeiten') {
+        const startTimeStr = formData.get('start_time') as string;
+        const endTimeStr = formData.get('end_time') as string;
+
+        if (!startTimeStr || !endTimeStr) {
+          setError('Start- und Endzeit sind erforderlich');
+          setIsLoading(false);
+          return;
+        }
+
+        startTime = new Date(`${date}T${startTimeStr}:00`);
+        endTime = new Date(`${date}T${endTimeStr}:00`);
+
+        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+          setError('Ungueltiges Datum oder Zeitformat');
+          setIsLoading(false);
+          return;
+        }
+
+        if (endTime <= startTime) {
+          setError('Endzeit muss nach Startzeit liegen');
+          setIsLoading(false);
+          return;
+        }
+
+        durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
+      } else {
+        const hours = parseInt((formData.get('hours') as string) || '0', 10);
+        const minutes = parseInt((formData.get('minutes') as string) || '0', 10);
+
+        if (isNaN(hours) || isNaN(minutes) || (hours === 0 && minutes === 0)) {
+          setError('Bitte gib eine Dauer ein (mindestens 1 Minute)');
+          setIsLoading(false);
+          return;
+        }
+
+        durationMinutes = hours * 60 + minutes;
+
+        if (durationMinutes <= 0) {
+          setError('Die Dauer muss mindestens 1 Minute betragen');
+          setIsLoading(false);
+          return;
+        }
+
+        // Verwende Mitternacht als Start-Platzhalter für reine Dauereinträge
+        startTime = new Date(`${date}T00:00:00`);
+        endTime = new Date(startTime.getTime() + durationMinutes * 60000);
       }
-
-      if (endTime <= startTime) {
-        setError('Endzeit muss nach Startzeit liegen');
-        setIsLoading(false);
-        return;
-      }
-
-      const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
 
       const { error: insertError } = await supabase.from('time_entries').insert({
         user_id: user.id,
@@ -109,36 +146,105 @@ export function ManualEntryForm({ projects, categories = [] }: ManualEntryFormPr
 
       {isOpen && (
         <form onSubmit={handleSubmit} className="p-4 pt-0 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Datum</label>
-              <input
-                name="date"
-                type="date"
-                defaultValue={today}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Von</label>
-              <input
-                name="start_time"
-                type="time"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Bis</label>
-              <input
-                name="end_time"
-                type="time"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-            </div>
+
+          {/* Modus-Toggle */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden w-fit">
+            <button
+              type="button"
+              onClick={() => setMode('zeiten')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                mode === 'zeiten'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Von / Bis
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('dauer')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                mode === 'dauer'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <Timer className="h-3.5 w-3.5" />
+              Dauer
+            </button>
           </div>
+
+          {mode === 'zeiten' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Datum</label>
+                <input
+                  name="date"
+                  type="date"
+                  defaultValue={today}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Von</label>
+                <input
+                  name="start_time"
+                  type="time"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Bis</label>
+                <input
+                  name="end_time"
+                  type="time"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Datum</label>
+                <input
+                  name="date"
+                  type="date"
+                  defaultValue={today}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Stunden</label>
+                <input
+                  name="hours"
+                  type="number"
+                  min="0"
+                  max="23"
+                  defaultValue="0"
+                  placeholder="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Minuten</label>
+                <input
+                  name="minutes"
+                  type="number"
+                  min="0"
+                  max="59"
+                  defaultValue="0"
+                  placeholder="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Projekt / Kategorie</label>
@@ -154,6 +260,7 @@ export function ManualEntryForm({ projects, categories = [] }: ManualEntryFormPr
               />
             </div>
           </div>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"
