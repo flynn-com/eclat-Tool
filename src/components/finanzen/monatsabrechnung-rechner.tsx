@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calculator, Check, Download, Plus, Trash2, RotateCcw, Repeat, ReceiptText } from 'lucide-react';
+import { Calculator, Check, Download, Plus, Trash2, RotateCcw, Repeat, ReceiptText, FolderCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
@@ -47,6 +47,13 @@ interface ProjektAusgabe {
   projektName: string;
 }
 
+interface ProjektEinnahme {
+  id: string;
+  name: string;
+  budget: number;
+  color: string;
+}
+
 interface MonatsabrechnungRechnerProps {
   settings: MonatsabrechnungSettings;
   staffeln: Staffel[];
@@ -55,6 +62,7 @@ interface MonatsabrechnungRechnerProps {
   abrechnungsMonatLabel: string;
   wiederkehrendeAusgaben?: WiederkehrendeAusgabe[];
   projektAusgaben?: ProjektAusgabe[];
+  projektEinnahmen?: ProjektEinnahme[];
 }
 
 interface PersonErgebnis {
@@ -85,7 +93,7 @@ function berechneStaffelBonus(umsatz: number, staffeln: Staffel[]): number {
   return bonus;
 }
 
-export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnungsMonat, abrechnungsMonatLabel, wiederkehrendeAusgaben = [], projektAusgaben = [] }: MonatsabrechnungRechnerProps) {
+export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnungsMonat, abrechnungsMonatLabel, wiederkehrendeAusgaben = [], projektAusgaben = [], projektEinnahmen = [] }: MonatsabrechnungRechnerProps) {
   const [einnahmePositionen, setEinnahmePositionen] = useState<EinnahmePosition[]>([{ projekt: '', betrag: '' }]);
   const [ausgabePositionen, setAusgabePositionen] = useState<AusgabePosition[]>([{ beschreibung: '', betrag: '' }]);
   const [boni, setBoni] = useState<BonusEintrag[]>([]);
@@ -200,7 +208,8 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
 
   // Live calculation values
   const parse = (s: string) => parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
-  const einnahmenZahl = einnahmePositionen.reduce((s, p) => s + parse(p.betrag), 0);
+  const projektEinnahmenSumme = projektEinnahmen.reduce((s, p) => s + p.budget, 0);
+  const einnahmenZahl = einnahmePositionen.reduce((s, p) => s + parse(p.betrag), 0) + projektEinnahmenSumme;
   const wiederkehrendSumme = wiederkehrendeAusgaben.reduce((s, a) => s + a.betrag, 0);
   const projektAusgabenSumme = projektAusgaben.reduce((s, a) => s + a.betrag, 0);
   const ausgabenZahl = ausgabePositionen.reduce((s, p) => s + parse(p.betrag), 0) + wiederkehrendSumme + projektAusgabenSumme;
@@ -454,7 +463,40 @@ export function MonatsabrechnungRechner({ settings, staffeln, personen, abrechnu
       {/* 2. Einnahmen */}
       <div className="neu-raised p-5">
         <h3 className="text-base font-bold mb-3" style={{ fontFamily: 'var(--font-heading)', color: 'var(--neu-text)' }}>Einnahmen</h3>
-        <p className="text-xs mb-3" style={{ color: 'var(--neu-text-secondary)' }}>Alle Einnahmen dieses Monats nach Auftrag/Projekt auflisten (netto)</p>
+
+        {/* Abgeschlossene Projekte (automatisch) */}
+        {projektEinnahmen.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <FolderCheck className="h-3 w-3" style={{ color: 'var(--neu-accent-mid)' }} />
+              <span className="text-xs font-medium" style={{ color: 'var(--neu-text-secondary)' }}>
+                Abgeschlossene Projekte (automatisch)
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {projektEinnahmen.map(p => (
+                <div key={p.id} className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                  style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                  <span className="flex-1 text-sm" style={{ color: 'var(--neu-text)' }}>{p.name}</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--neu-surface)', color: 'var(--neu-text-secondary)' }}>
+                    Budget
+                  </span>
+                  <span className="text-sm font-semibold w-28 text-right" style={{ color: '#10b981' }}>
+                    {formatEuro(p.budget)}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between px-3 py-1 text-xs" style={{ color: 'var(--neu-text-secondary)' }}>
+                <span>Projektumsatz gesamt</span>
+                <span className="font-semibold" style={{ color: '#10b981' }}>{formatEuro(projektEinnahmenSumme)}</span>
+              </div>
+            </div>
+            <div className="my-3 border-t" style={{ borderColor: 'var(--neu-border)' }} />
+          </div>
+        )}
+
+        <p className="text-xs mb-3" style={{ color: 'var(--neu-text-secondary)' }}>Weitere Einnahmen dieses Monats (netto)</p>
         <div className="space-y-2 mb-3">
           {einnahmePositionen.map((pos, i) => (
             <div key={i} className="flex items-center gap-2">

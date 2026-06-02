@@ -42,6 +42,9 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
   const settings: MonatsabrechnungSettings = maRaw ?? DEFAULT_MONATSABRECHNUNG;
   const staffeln: Staffel[] = staffelnRaw ?? DEFAULT_STAFFELN;
 
+  const lastDayOfMonth = String(new Date(jahr, monat, 0).getDate()).padStart(2, '0');
+  const monatStr2 = monatStr.padStart(2, '0');
+
   // All data in parallel
   const [
     { data: profiles },
@@ -49,6 +52,7 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
     { data: alleAbrechnungen },
     { data: recurringExpenses },
     { data: projektAusgabenRaw },
+    { data: abgeschlosseneProjekte },
   ] = await Promise.all([
     supabase.from('profiles').select('id, full_name').order('full_name'),
     supabase.from('time_entries').select('user_id, duration_minutes, start_time').not('end_time', 'is', null),
@@ -56,9 +60,14 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
     supabase.from('recurring_expenses').select('id, name, betrag, kategorie, aktiv').eq('aktiv', true).order('created_at'),
     supabase.from('project_expenses')
       .select('id, bezeichnung, betrag, kategorie, project_id, projects(name)')
-      .gte('datum', `${jahrStr}-${monatStr.padStart(2,'0')}-01`)
-      .lte('datum', `${jahrStr}-${monatStr.padStart(2,'0')}-${String(new Date(jahr, monat, 0).getDate()).padStart(2,'0')}`)
+      .gte('datum', `${jahrStr}-${monatStr2}-01`)
+      .lte('datum', `${jahrStr}-${monatStr2}-${lastDayOfMonth}`)
       .order('datum', { ascending: true }),
+    supabase.from('projects')
+      .select('id, name, budget, color')
+      .not('completed_at', 'is', null)
+      .gte('completed_at', startOfMonth)
+      .lte('completed_at', endOfMonth),
   ]);
 
   // Build HashMaps for O(1) lookup instead of O(n) filter
@@ -133,6 +142,14 @@ export default async function MonatsabrechnungPage({ searchParams }: { searchPar
           kategorie: e.kategorie,
           projektName: (e as any).projects?.name ?? 'Unbekannt',
         }))}
+        projektEinnahmen={(abgeschlosseneProjekte ?? [])
+          .filter(p => p.budget != null && Number(p.budget) > 0)
+          .map(p => ({
+            id: p.id,
+            name: p.name,
+            budget: Number(p.budget),
+            color: p.color ?? '#10b981',
+          }))}
       />
     </div>
   );
